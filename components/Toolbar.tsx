@@ -77,7 +77,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 onChange={(e) => setWatermarkText(e.target.value.slice(0, 20))}
                 placeholder="自定义文案"
                 maxLength={20}
-                className="w-full bg-white border border-gray-300 text-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:border-amber-500 transition-all placeholder:text-gray-400"
+                className="w-full bg-white border border-amber-400 text-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-all placeholder:text-gray-400"
               />
             </div>
         </div>
