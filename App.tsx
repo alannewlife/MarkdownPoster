@@ -151,19 +151,35 @@ export default function App() {
 
   const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
 
+  // Use a reliable image proxy to handle CORS issues for any external image
+  const getCorsFriendlyUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('data:')) return url;
+    
+    // Check if it's an external URL
+    try {
+      const urlObj = new URL(url);
+      // Skip proxy for same origin (if any, though in this app likely not)
+      if (urlObj.origin === window.location.origin) return url;
+      
+      // Use wsrv.nl as a high-performance, CORS-enabled image proxy
+      return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
+    } catch {
+      return url;
+    }
+  };
+
   const handleExport = async () => {
     if (!exportRef.current) return;
     setIsExporting(true);
     try {
-      // Small delay to ensure styles are stable
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Ensure fonts and images are loaded
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       const dataUrl = await toPng(exportRef.current, { 
         cacheBust: true,
-        pixelRatio: 2, // High resolution
-        style: {
-          margin: '0', // Reset margin in capture
-        }
+        pixelRatio: 2, 
+        useCORS: true, // Still required to tell html-to-image to try fetching with CORS
       });
       
       const link = document.createElement('a');
@@ -172,7 +188,7 @@ export default function App() {
       link.click();
     } catch (error) {
       console.error('Export failed', error);
-      alert('导出图片失败。');
+      alert('导出图片失败。这可能是因为网络连接问题，或图片服务限制了访问。');
     } finally {
       setIsExporting(false);
     }
@@ -189,7 +205,6 @@ export default function App() {
       };
       reader.readAsText(file);
     }
-    // Reset the input value so the same file can be selected again if needed
     event.target.value = '';
   };
 
@@ -257,7 +272,6 @@ export default function App() {
                   <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
                   <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
                   <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
-                  {/* Text removed */}
                 </div>
               )}
 
@@ -287,7 +301,20 @@ export default function App() {
               
               {/* Content Body */}
               <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} min-h-[500px]`}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    img: ({node, ...props}) => (
+                      <img 
+                        {...props} 
+                        src={getCorsFriendlyUrl(props.src)}
+                        className="max-w-full h-auto rounded-lg shadow-sm mx-auto block"
+                        loading="eager" // Load eagerly for export readiness
+                        crossOrigin="anonymous" // Essential for html-to-image
+                      />
+                    )
+                  }}
+                >
                   {markdown}
                 </ReactMarkdown>
               </div>
