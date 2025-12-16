@@ -299,10 +299,19 @@ export default function App() {
 
         {/* Resizer Handle */}
         <div
-          className="w-4 -ml-2 h-full z-20 cursor-col-resize flex items-center justify-center hover:bg-amber-500/5 transition-colors group flex-shrink-0 select-none"
+          className="w-6 -ml-3 h-full z-20 cursor-col-resize flex items-center justify-center group flex-shrink-0 select-none relative"
           onMouseDown={startResizing}
+          title="拖动调整宽度"
         >
-           <div className="w-1 h-8 rounded-full bg-gray-300 group-hover:bg-amber-400 transition-colors shadow-sm" />
+           {/* Visual Guide Line - shows area of effect */}
+           <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px h-full bg-transparent group-hover:bg-amber-400/50 transition-colors" />
+           
+           {/* Grip Handle - Thinner, Rectangular, Long strip */}
+           <div className="relative z-30 w-2 h-16 bg-white border border-gray-300 shadow-sm flex flex-col items-center justify-center gap-2 group-hover:border-amber-500 group-hover:bg-amber-50 transition-all duration-200">
+             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-amber-600" />
+             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-amber-600" />
+             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-amber-600" />
+           </div>
         </div>
 
         {/* Right: Preview Workspace */}
