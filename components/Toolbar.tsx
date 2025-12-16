@@ -27,7 +27,7 @@ const themeNames: Record<BorderTheme, string> = {
   [BorderTheme.Sunset]: '日落渐变',
   [BorderTheme.Ocean]: '深海系统',
   [BorderTheme.Candy]: '糖果甜心',
-  [BorderTheme.Poster]: '海报模式'
+  [BorderTheme.Poster]: '幻彩紫韵'
 };
 
 export const Toolbar: React.FC<ToolbarProps> = ({ 
@@ -72,7 +72,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         
         {/* Watermark Controls (Toggle Switch) */}
          <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1.5 border border-gray-200 px-3">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">标识</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">署名</span>
             
             {/* Toggle Switch */}
             <button 

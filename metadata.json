@@ -1,5 +1,5 @@
 {
   "name": "MarkdownPoster",
-  "description": "A split-screen Markdown editor with customizable aesthetic borders and Gemini-powered AI writing assistance.",
+  "description": "A split-screen Markdown editor with customizable aesthetic borders.",
   "requestFramePermissions": []
 }

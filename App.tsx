@@ -18,7 +18,7 @@ Markdown Poster 是一个工具，让你用 Markdown 制作优雅的图文海报
    - 文本主题背景
    - 字体大小
    - 画布宽度
-   - 标识
+   - 署名
 3. 所见即所得，可**下载为 PNG 图片**。
 
 ## 适用场景：
@@ -214,11 +214,11 @@ export default function App() {
       const dataUrl = await toPng(exportRef.current, { 
         cacheBust: true,
         pixelRatio: 2, 
-        useCORS: true, 
+        // useCORS removed as it is not a valid option for html-to-image
       });
       
       const link = document.createElement('a');
-      link.download = `markframe-export-${Date.now()}.png`;
+      link.download = `markdownposter-${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
     } catch (error) {
@@ -363,7 +363,7 @@ export default function App() {
                       img: ({node, ...props}) => (
                         <img 
                           {...props} 
-                          src={getCorsFriendlyUrl(props.src)}
+                          src={getCorsFriendlyUrl(typeof props.src === 'string' ? props.src : undefined)}
                           className="max-w-full h-auto rounded-lg shadow-sm mx-auto block"
                           loading="eager" 
                           crossOrigin="anonymous" 
