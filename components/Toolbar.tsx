@@ -72,7 +72,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         
         {/* Watermark Controls (Toggle Switch) */}
          <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1.5 border border-gray-200 px-3">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">水印</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">标识</span>
             
             {/* Toggle Switch */}
             <button 
