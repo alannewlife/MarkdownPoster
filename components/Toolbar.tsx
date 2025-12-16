@@ -61,7 +61,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 almost
               </span>
               <span className="text-xs text-gray-400 font-medium tracking-wide">
-                最有品位的 md生成器
+                最有品位的Md海报生成器
               </span>
             </div>
           </div>
