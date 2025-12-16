@@ -14,9 +14,12 @@ Markdown Poster 是一个工具，让你用 Markdown 制作优雅的图文海报
 ## 它的主要功能：
 
 1. 将 Markdown 转化为 **图文海报**
-2. 可以 **自定义** 文本主题、背景、字体大小
-3. 可以复制图片到 **剪贴板**，或者 **下载为PNG图片**
-4. 所见即所得
+2. 可以 **自定义**
+   - 文本主题背景
+   - 字体大小
+   - 画布宽度
+   - 水印
+3. 所见即所得，可**下载为 PNG 图片**。
 
 ## 适用场景：
 
@@ -46,9 +49,9 @@ export default function App() {
   const [fontSize, setFontSize] = useState<FontSize>(FontSize.Medium);
   const [isExporting, setIsExporting] = useState(false);
   
-  // Watermark State
+  // Watermark State - Default is empty to show placeholder in input, fallback text used in preview
   const [showWatermark, setShowWatermark] = useState(true);
-  const [watermarkText, setWatermarkText] = useState("人人智学社 rrzxs.com");
+  const [watermarkText, setWatermarkText] = useState("");
 
   // Layout State for Resizable Splitter
   const [leftWidth, setLeftWidth] = useState(50); // Percentage
@@ -262,7 +265,18 @@ export default function App() {
           className="flex flex-col border-r border-gray-200 bg-white z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
         >
           <div className="h-10 border-b border-gray-100 flex items-center justify-between px-6 bg-gray-50/50">
-             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">输入源码</span>
+             <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">输入源码</span>
+                <a 
+                  href="https://markdown.com.cn/basic-syntax/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-amber-500 transition-colors"
+                  title="Markdown 语法帮助"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </a>
+             </div>
              <label className="cursor-pointer flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors uppercase tracking-wide">
                 <input 
                   type="file" 
@@ -364,8 +378,8 @@ export default function App() {
 
               {/* Footer Watermark (Now outside the card, inside the frame) */}
               {showWatermark && (
-                <div className={`mt-6 text-right opacity-60 text-[10px] uppercase tracking-widest font-bold ${currentStyle.watermarkColor}`}>
-                  {watermarkText}
+                <div className={`mt-6 text-right opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor}`}>
+                  {watermarkText || "人人智学社 rrzxs.com"}
                 </div>
               )}
 

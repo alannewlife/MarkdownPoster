@@ -49,11 +49,22 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <img 
             alt="RenRen AI Club" 
             className="h-10 w-auto object-contain drop-shadow-sm" 
-            src="https://s2.loli.net/2025/11/16/uQj16PrXzOdFtea.png" 
+            src="https://s2.loli.net/2025/12/16/cxVD2oCAQJ45EMl.png" 
           />
-          <span className="text-xl font-bold text-gray-900 tracking-tight font-sans">
-            MarkdownPoster
-          </span>
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-6">
+            <span className="text-xl font-bold text-gray-900 tracking-tight font-sans">
+              MarkdownPoster
+            </span>
+            <div className="relative hidden sm:block">
+              {/* 'almost' positioned absolute to the top-left of the subtitle */}
+              <span className="absolute -top-3 -left-3 text-[10px] text-gray-400 -rotate-12 font-serif italic font-medium tracking-wide">
+                almost
+              </span>
+              <span className="text-xs text-gray-400 font-medium tracking-wide">
+                最有品位的 md生成器
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -79,7 +90,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 type="text" 
                 value={watermarkText}
                 onChange={(e) => setWatermarkText(e.target.value.slice(0, 20))}
-                placeholder="自定义文案"
+                placeholder="人人智学社 rrzxs.com"
                 maxLength={20}
                 className="w-full bg-white border border-amber-400 text-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-all placeholder:text-gray-400"
               />
