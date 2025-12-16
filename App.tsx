@@ -82,69 +82,92 @@ export default function App() {
     switch (themeName) {
       case BorderTheme.Poster:
         return {
-          card: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 rounded-2xl shadow-2xl ring-4 ring-purple-100/50",
-          content: "bg-white/95 backdrop-blur-sm shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-xl p-10 min-h-[600px]",
+          // UPDATED: Gradient is now the frame itself
+          frame: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600", 
+          // UPDATED: Card is transparent to avoid double-border look
+          card: "bg-transparent", 
+          // UPDATED: Content keeps the white box look
+          content: "bg-white/95 backdrop-blur-sm shadow-2xl rounded-xl p-8 min-h-[600px]",
           prose: "prose-slate prose-lg",
-          header: "h-2" // Minimal spacer
+          header: "hidden",
+          watermarkColor: "text-white/80"
         };
       case BorderTheme.Sunset:
         return {
+          frame: "bg-[#fff7ed]", // orange-50
           card: "bg-gradient-to-br from-orange-50 to-rose-50 border-4 border-orange-200 shadow-[0_20px_50px_-12px_rgba(251,146,60,0.5)] rounded-2xl overflow-hidden ring-4 ring-orange-100/50",
           content: "bg-transparent text-gray-800 p-10",
           prose: "prose-orange prose-headings:text-orange-900",
-          header: "bg-orange-100/50 border-b border-orange-200/50 h-10 flex items-center px-4 space-x-2"
+          header: "bg-orange-100/50 border-b border-orange-200/50 h-10 flex items-center px-4 space-x-2",
+          watermarkColor: "text-orange-300"
         };
       case BorderTheme.Ocean:
         return {
+          frame: "bg-[#0f172a]", // slate-900 dark frame
           card: "bg-cyan-950 border border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.2)] rounded-xl overflow-hidden relative",
           content: "bg-gradient-to-b from-cyan-900/50 to-blue-950/50 text-cyan-50 p-10",
           prose: "prose-invert prose-headings:text-cyan-200 prose-a:text-cyan-400",
-          header: "bg-cyan-900/40 border-b border-cyan-800 h-8 flex items-center justify-end px-4 space-x-2"
+          header: "bg-cyan-900/40 border-b border-cyan-800 h-8 flex items-center justify-end px-4 space-x-2",
+          watermarkColor: "text-cyan-800"
         };
       case BorderTheme.Candy:
         return {
+          frame: "bg-[#fdf2f8]", // pink-50
           card: "bg-white border-4 border-pink-400 shadow-[8px_8px_0px_0px_rgba(244,114,182,1)] rounded-3xl overflow-hidden",
           content: "bg-yellow-50/50 text-gray-800 p-8 font-comic",
           prose: "prose-pink prose-headings:text-pink-600 prose-strong:text-purple-600",
-          header: "bg-pink-100 border-b-4 border-pink-400 h-10 flex items-center px-4 space-x-3"
+          header: "bg-pink-100 border-b-4 border-pink-400 h-10 flex items-center px-4 space-x-3",
+          watermarkColor: "text-pink-300"
         };
       case BorderTheme.Neon:
         return {
+          frame: "bg-[#171717]", // neutral-900
           card: "bg-gray-900 border-2 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] rounded-xl overflow-hidden",
           content: "bg-gray-900 text-pink-50 p-8",
           prose: "prose-invert prose-p:text-pink-100 prose-headings:text-pink-400 prose-strong:text-cyan-300 prose-code:text-yellow-300",
+          watermarkColor: "text-pink-900" // Darker pink for subtle watermark on black
         };
       case BorderTheme.Sketch:
         return {
+          frame: "bg-[#f5f5f4]", // stone-100
           card: "bg-white sketch-border p-2 bg-white",
           content: "bg-white text-gray-900 p-8 font-comic",
           prose: "prose-slate prose-headings:font-comic",
+          watermarkColor: "text-stone-400"
         };
       case BorderTheme.Retro:
         return {
+          frame: "bg-[#e5dfce]", // slightly darker than card
           card: "bg-[#fdf6e3] border-4 border-double border-[#b58900] rounded-sm shadow-xl",
           content: "bg-[#fdf6e3] text-[#657b83] p-10",
           prose: "prose-headings:text-[#b58900] prose-a:text-[#268bd2] font-serif",
+          watermarkColor: "text-[#b58900] opacity-40"
         };
       case BorderTheme.Glass:
         return {
+          frame: "bg-gradient-to-br from-indigo-100 to-purple-100",
           card: "bg-white/40 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl ring-1 ring-black/5",
           content: "bg-transparent text-gray-900 p-8",
           prose: "prose-gray prose-headings:text-gray-900 font-sans",
+          watermarkColor: "text-indigo-300"
         };
       case BorderTheme.Minimal:
         return {
+          frame: "bg-[#f9fafb]", // gray-50
           card: "bg-white border border-gray-200 shadow-sm",
           content: "bg-white text-gray-900 p-10",
           prose: "prose-stone",
+          watermarkColor: "text-gray-300"
         };
       case BorderTheme.MacOS:
       default:
         return {
+          frame: "bg-[#f3f4f6]", // gray-100
           card: "bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden",
           header: "bg-gray-100 border-b border-gray-200 h-8 flex items-center px-4 space-x-2",
           content: "bg-white text-gray-800 p-8",
           prose: "prose-slate",
+          watermarkColor: "text-gray-400"
         };
     }
   };
@@ -179,7 +202,7 @@ export default function App() {
       const dataUrl = await toPng(exportRef.current, { 
         cacheBust: true,
         pixelRatio: 2, 
-        useCORS: true, // Still required to tell html-to-image to try fetching with CORS
+        useCORS: true, 
       });
       
       const link = document.createElement('a');
@@ -261,76 +284,80 @@ export default function App() {
         <div className="flex-1 bg-gray-100/80 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] overflow-y-auto relative flex flex-col items-center min-w-0">
           
           <div className="w-full py-10 px-8 flex justify-center min-h-min">
-            {/* The Themed Preview Card */}
+            
+            {/* 
+                THE EXPORT FRAME 
+                Outer container captured by export. 
+                UPDATED: Reduced padding to p-4 sm:p-6 (about half of previous).
+            */}
             <div 
               ref={exportRef}
-              className={`w-full max-w-2xl transition-all duration-300 ease-in-out ${currentStyle.card}`}
+              className={`w-full max-w-2xl transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
             >
-              {/* Conditional Header Rendering */}
-              {theme === BorderTheme.MacOS && (
-                <div className={currentStyle.header}>
-                  <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
-                  <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
-                  <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
+              
+              {/* The Inner Card */}
+              <div className={`w-full ${currentStyle.card}`}>
+                {/* Conditional Header Rendering */}
+                {theme === BorderTheme.MacOS && (
+                  <div className={currentStyle.header}>
+                    <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
+                    <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
+                    <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
+                  </div>
+                )}
+
+                {theme === BorderTheme.Sunset && (
+                   <div className={currentStyle.header}>
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                        <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                      </div>
+                      <div className="flex-1 text-center text-xs text-orange-800/50 font-bold uppercase tracking-widest">日落模式</div>
+                   </div>
+                )}
+
+                {theme === BorderTheme.Candy && (
+                   <div className={currentStyle.header}>
+                      <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
+                      <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
+                      <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
+                   </div>
+                )}
+
+                {theme === BorderTheme.Ocean && (
+                   <div className={currentStyle.header}>
+                      <div className="text-[10px] text-cyan-500/50 font-mono">SYS.01 // 在线</div>
+                   </div>
+                )}
+                
+                {/* Content Body */}
+                <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} min-h-[500px]`}>
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      img: ({node, ...props}) => (
+                        <img 
+                          {...props} 
+                          src={getCorsFriendlyUrl(props.src)}
+                          className="max-w-full h-auto rounded-lg shadow-sm mx-auto block"
+                          loading="eager" 
+                          crossOrigin="anonymous" 
+                        />
+                      )
+                    }}
+                  >
+                    {markdown}
+                  </ReactMarkdown>
                 </div>
-              )}
-
-              {theme === BorderTheme.Sunset && (
-                 <div className={currentStyle.header}>
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                      <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                    </div>
-                    <div className="flex-1 text-center text-xs text-orange-800/50 font-bold uppercase tracking-widest">日落模式</div>
-                 </div>
-              )}
-
-              {theme === BorderTheme.Candy && (
-                 <div className={currentStyle.header}>
-                    <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
-                    <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
-                    <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
-                 </div>
-              )}
-
-              {theme === BorderTheme.Ocean && (
-                 <div className={currentStyle.header}>
-                    <div className="text-[10px] text-cyan-500/50 font-mono">SYS.01 // 在线</div>
-                 </div>
-              )}
-              
-              {/* Content Body */}
-              <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} min-h-[500px]`}>
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    img: ({node, ...props}) => (
-                      <img 
-                        {...props} 
-                        src={getCorsFriendlyUrl(props.src)}
-                        className="max-w-full h-auto rounded-lg shadow-sm mx-auto block"
-                        loading="eager" // Load eagerly for export readiness
-                        crossOrigin="anonymous" // Essential for html-to-image
-                      />
-                    )
-                  }}
-                >
-                  {markdown}
-                </ReactMarkdown>
               </div>
-              
-              {/* Footer Watermark */}
+
+              {/* Footer Watermark (Now outside the card, inside the frame) */}
               {showWatermark && (
-                <div className={`px-8 pb-6 pt-2 text-right opacity-50 text-[10px] uppercase tracking-widest font-bold ${
-                  theme === BorderTheme.Neon ? 'text-pink-300' : 
-                  theme === BorderTheme.Ocean ? 'text-cyan-300' :
-                  theme === BorderTheme.Sunset ? 'text-orange-900' :
-                  theme === BorderTheme.Poster ? 'text-white/80' :
-                  'text-gray-400'
-                }`}>
+                <div className={`mt-6 text-right opacity-60 text-[10px] uppercase tracking-widest font-bold ${currentStyle.watermarkColor}`}>
                   {watermarkText}
                 </div>
               )}
+
             </div>
           </div>
         </div>
