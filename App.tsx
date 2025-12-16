@@ -313,11 +313,11 @@ export default function App() {
             {/* 
                 THE EXPORT FRAME 
                 Outer container captured by export. 
-                UPDATED: Reduced padding to p-4 sm:p-6 (about half of previous).
+                UPDATED: max-w-none to allow infinite resizing per user request, and md:w-[75%] for slightly larger visual footprint
             */}
             <div 
               ref={exportRef}
-              className={`w-full max-w-2xl transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
+              className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
             >
               
               {/* The Inner Card */}
