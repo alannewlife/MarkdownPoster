@@ -14,6 +14,12 @@ export enum BorderTheme {
   Poster = 'Poster'
 }
 
+export enum FontSize {
+  Small = 'Small',
+  Medium = 'Medium',
+  Large = 'Large'
+}
+
 export interface BorderStyleConfig {
   frame: string;      // NEW: The background style of the safety outer frame
   card: string;       // The inner container styling (border, shadow, radius)

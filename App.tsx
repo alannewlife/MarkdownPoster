@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
 import { Toolbar } from './components/Toolbar';
-import { BorderTheme, BorderStyleConfig } from './types';
+import { BorderTheme, BorderStyleConfig, FontSize } from './types';
 
 const DEFAULT_MARKDOWN = `# Markdown 海报生成器
 
@@ -43,6 +43,7 @@ function createArt() {
 export default function App() {
   const [markdown, setMarkdown] = useState<string>(DEFAULT_MARKDOWN);
   const [theme, setTheme] = useState<BorderTheme>(BorderTheme.MacOS);
+  const [fontSize, setFontSize] = useState<FontSize>(FontSize.Medium);
   const [isExporting, setIsExporting] = useState(false);
   
   // Watermark State
@@ -172,6 +173,14 @@ export default function App() {
     }
   };
 
+  const getFontSizeClass = (size: FontSize) => {
+    switch (size) {
+      case FontSize.Small: return 'prose-sm';
+      case FontSize.Large: return 'prose-xl';
+      case FontSize.Medium: default: return 'prose-base';
+    }
+  };
+
   const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
 
   // Use a reliable image proxy to handle CORS issues for any external image
@@ -242,6 +251,8 @@ export default function App() {
         setShowWatermark={setShowWatermark}
         watermarkText={watermarkText}
         setWatermarkText={setWatermarkText}
+        fontSize={fontSize}
+        setFontSize={setFontSize}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -331,7 +342,7 @@ export default function App() {
                 )}
                 
                 {/* Content Body */}
-                <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} min-h-[500px]`}>
+                <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px]`}>
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{

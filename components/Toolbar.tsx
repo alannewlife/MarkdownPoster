@@ -1,5 +1,5 @@
 import React from 'react';
-import { BorderTheme } from '../types';
+import { BorderTheme, FontSize } from '../types';
 
 interface ToolbarProps {
   currentTheme: BorderTheme;
@@ -10,6 +10,8 @@ interface ToolbarProps {
   setShowWatermark: (show: boolean) => void;
   watermarkText: string;
   setWatermarkText: (text: string) => void;
+  fontSize: FontSize;
+  setFontSize: (size: FontSize) => void;
 }
 
 const themes = Object.values(BorderTheme);
@@ -36,7 +38,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   showWatermark,
   setShowWatermark,
   watermarkText,
-  setWatermarkText
+  setWatermarkText,
+  fontSize,
+  setFontSize
 }) => {
   return (
     <div className="flex flex-col sm:flex-row justify-between items-center p-3 px-6 bg-white/90 backdrop-blur-md border-b border-gray-200 gap-4 shadow-sm z-50 sticky top-0">
@@ -80,6 +84,33 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 className="w-full bg-white border border-amber-400 text-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-all placeholder:text-gray-400"
               />
             </div>
+        </div>
+
+        <div className="h-6 w-px bg-gray-300 mx-1"></div>
+
+        {/* Font Size Selector */}
+        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 border border-gray-200">
+          <span className="text-xs font-bold text-gray-500 pl-2 uppercase tracking-wide">字号:</span>
+          <div className="flex items-center">
+            {[
+              { label: '小', value: FontSize.Small, icon: 'text-xs' },
+              { label: '中', value: FontSize.Medium, icon: 'text-sm' },
+              { label: '大', value: FontSize.Large, icon: 'text-lg' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setFontSize(option.value)}
+                className={`w-8 py-1 rounded text-xs font-bold transition-all ${
+                  fontSize === option.value 
+                    ? 'bg-white shadow text-amber-600' 
+                    : 'text-gray-400 hover:text-gray-600'
+                }`}
+                title={option.label}
+              >
+                <span className={option.icon}>A</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="h-6 w-px bg-gray-300 mx-1"></div>
