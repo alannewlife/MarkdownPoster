@@ -110,7 +110,8 @@ export default function App() {
           frame: "bg-[#0f172a]", // slate-900 dark frame
           card: "bg-cyan-950 border border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.2)] rounded-xl overflow-hidden relative",
           content: "bg-gradient-to-b from-cyan-900/50 to-blue-950/50 text-cyan-50 p-10",
-          prose: "prose-invert prose-headings:text-cyan-200 prose-a:text-cyan-400",
+          // UPDATED: Explicitly set table cell and header colors using arbitrary selector syntax to fix visibility issues
+          prose: "prose-invert prose-headings:text-cyan-200 prose-a:text-cyan-400 [&_td]:text-cyan-50 [&_th]:text-cyan-200",
           header: "bg-cyan-900/40 border-b border-cyan-800 h-8 flex items-center justify-end px-4 space-x-2",
           watermarkColor: "text-cyan-800"
         };
@@ -128,7 +129,8 @@ export default function App() {
           frame: "bg-[#171717]", // neutral-900
           card: "bg-gray-900 border-2 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] rounded-xl overflow-hidden",
           content: "bg-gray-900 text-pink-50 p-8",
-          prose: "prose-invert prose-p:text-pink-100 prose-headings:text-pink-400 prose-strong:text-cyan-300 prose-code:text-yellow-300",
+          // UPDATED: Explicitly set table cell and header colors using arbitrary selector syntax to fix visibility issues
+          prose: "prose-invert prose-p:text-pink-100 prose-headings:text-pink-400 prose-strong:text-cyan-300 prose-code:text-yellow-300 [&_td]:text-pink-50 [&_th]:text-pink-400",
           watermarkColor: "text-pink-900" // Darker pink for subtle watermark on black
         };
       case BorderTheme.Sketch:
