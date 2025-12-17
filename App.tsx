@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
@@ -43,18 +43,96 @@ function createArt() {
 [访问我们的网站 rrzxs.com](https://rrzxs.com)
 `;
 
+// Helper to handle CORS for initial fetch
+const getCorsFriendlyUrl = (url?: string) => {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.origin === window.location.origin) return url;
+    // Use wsrv.nl as a high-performance, CORS-enabled image proxy
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
+  } catch {
+    return url;
+  }
+};
+
+// NEW: StableImage Component
+// Fetches the image once, converts to Blob, and locks it.
+// This ensures Preview and Export see exactly the same binary data.
+const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => {
+  const [blobSrc, setBlobSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!src) return;
+    
+    let isMounted = true;
+    setIsLoading(true);
+
+    const proxyUrl = getCorsFriendlyUrl(src);
+
+    fetch(proxyUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        if (isMounted) {
+          const objectUrl = URL.createObjectURL(blob);
+          setBlobSrc(objectUrl);
+          setIsLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load image blob", err);
+        // Fallback to proxy URL if blob fails, though it might suffer from the original issue
+        if (isMounted) {
+          setBlobSrc(proxyUrl);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      // Cleanup blob URL to prevent memory leaks when image changes or unmounts
+      if (blobSrc && blobSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(blobSrc);
+      }
+    };
+  }, [src]); // Only re-run if the source URL changes in the markdown
+
+  if (isLoading) {
+    // Placeholder while loading the blob
+    return (
+      <div className="w-full h-48 bg-gray-100 animate-pulse rounded-lg flex items-center justify-center text-gray-300">
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={blobSrc || ""} 
+      alt={alt} 
+      {...props} 
+      className="max-w-full h-auto rounded-lg shadow-sm mx-auto block"
+    />
+  );
+};
+
 export default function App() {
   const [markdown, setMarkdown] = useState<string>(DEFAULT_MARKDOWN);
   const [theme, setTheme] = useState<BorderTheme>(BorderTheme.MacOS);
   const [fontSize, setFontSize] = useState<FontSize>(FontSize.Medium);
   const [isExporting, setIsExporting] = useState(false);
   
-  // Watermark State - Default is empty to show placeholder in input, fallback text used in preview
+  // New: Export Version Counter to force DOM remount
+  const [exportVersion, setExportVersion] = useState(0);
+  
+  // Watermark State
   const [showWatermark, setShowWatermark] = useState(true);
   const [watermarkText, setWatermarkText] = useState("");
 
   // Layout State for Resizable Splitter
-  const [leftWidth, setLeftWidth] = useState(50); // Percentage
+  const [leftWidth, setLeftWidth] = useState(50); 
   
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -63,7 +141,6 @@ export default function App() {
     
     const onMouseMove = (e: MouseEvent) => {
         const newWidth = (e.clientX / window.innerWidth) * 100;
-        // Limit width between 20% and 80%
         if (newWidth >= 20 && newWidth <= 80) {
             setLeftWidth(newWidth);
         }
@@ -79,18 +156,15 @@ export default function App() {
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
     document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none'; // Prevent selection while dragging
+    document.body.style.userSelect = 'none'; 
   }, []);
 
   const getThemeStyles = (themeName: BorderTheme): BorderStyleConfig => {
     switch (themeName) {
       case BorderTheme.Poster:
         return {
-          // UPDATED: Gradient is now the frame itself
           frame: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600", 
-          // UPDATED: Card is transparent to avoid double-border look
           card: "bg-transparent", 
-          // UPDATED: Content keeps the white box look
           content: "bg-white/95 backdrop-blur-sm shadow-2xl rounded-xl p-8 min-h-[600px]",
           prose: "prose-slate prose-lg",
           header: "hidden",
@@ -98,7 +172,7 @@ export default function App() {
         };
       case BorderTheme.Sunset:
         return {
-          frame: "bg-[#fff7ed]", // orange-50
+          frame: "bg-[#fff7ed]",
           card: "bg-gradient-to-br from-orange-50 to-rose-50 border-4 border-orange-200 shadow-[0_20px_50px_-12px_rgba(251,146,60,0.5)] rounded-2xl overflow-hidden ring-4 ring-orange-100/50",
           content: "bg-transparent text-gray-800 p-10",
           prose: "prose-orange prose-headings:text-orange-900",
@@ -107,17 +181,16 @@ export default function App() {
         };
       case BorderTheme.Ocean:
         return {
-          frame: "bg-[#0f172a]", // slate-900 dark frame
+          frame: "bg-[#0f172a]",
           card: "bg-cyan-950 border border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.2)] rounded-xl overflow-hidden relative",
           content: "bg-gradient-to-b from-cyan-900/50 to-blue-950/50 text-cyan-50 p-10",
-          // UPDATED: Explicitly set table cell and header colors using arbitrary selector syntax to fix visibility issues
           prose: "prose-invert prose-headings:text-cyan-200 prose-a:text-cyan-400 [&_td]:text-cyan-50 [&_th]:text-cyan-200",
           header: "bg-cyan-900/40 border-b border-cyan-800 h-8 flex items-center justify-end px-4 space-x-2",
           watermarkColor: "text-cyan-800"
         };
       case BorderTheme.Candy:
         return {
-          frame: "bg-[#fdf2f8]", // pink-50
+          frame: "bg-[#fdf2f8]",
           card: "bg-white border-4 border-pink-400 shadow-[8px_8px_0px_0px_rgba(244,114,182,1)] rounded-3xl overflow-hidden",
           content: "bg-yellow-50/50 text-gray-800 p-8 font-comic",
           prose: "prose-pink prose-headings:text-pink-600 prose-strong:text-purple-600",
@@ -126,16 +199,15 @@ export default function App() {
         };
       case BorderTheme.Neon:
         return {
-          frame: "bg-[#171717]", // neutral-900
+          frame: "bg-[#171717]",
           card: "bg-gray-900 border-2 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] rounded-xl overflow-hidden",
           content: "bg-gray-900 text-pink-50 p-8",
-          // UPDATED: Explicitly set table cell and header colors using arbitrary selector syntax to fix visibility issues
           prose: "prose-invert prose-p:text-pink-100 prose-headings:text-pink-400 prose-strong:text-cyan-300 prose-code:text-yellow-300 [&_td]:text-pink-50 [&_th]:text-pink-400",
-          watermarkColor: "text-pink-900" // Darker pink for subtle watermark on black
+          watermarkColor: "text-pink-900"
         };
       case BorderTheme.Sketch:
         return {
-          frame: "bg-[#f5f5f4]", // stone-100
+          frame: "bg-[#f5f5f4]",
           card: "bg-white sketch-border p-2 bg-white",
           content: "bg-white text-gray-900 p-8 font-comic",
           prose: "prose-slate prose-headings:font-comic",
@@ -143,7 +215,7 @@ export default function App() {
         };
       case BorderTheme.Retro:
         return {
-          frame: "bg-[#e5dfce]", // slightly darker than card
+          frame: "bg-[#e5dfce]",
           card: "bg-[#fdf6e3] border-4 border-double border-[#b58900] rounded-sm shadow-xl",
           content: "bg-[#fdf6e3] text-[#657b83] p-10",
           prose: "prose-headings:text-[#b58900] prose-a:text-[#268bd2] font-serif",
@@ -159,7 +231,7 @@ export default function App() {
         };
       case BorderTheme.Minimal:
         return {
-          frame: "bg-[#f9fafb]", // gray-50
+          frame: "bg-[#f9fafb]",
           card: "bg-white border border-gray-200 shadow-sm",
           content: "bg-white text-gray-900 p-10",
           prose: "prose-stone",
@@ -168,7 +240,7 @@ export default function App() {
       case BorderTheme.MacOS:
       default:
         return {
-          frame: "bg-[#f3f4f6]", // gray-100
+          frame: "bg-[#f3f4f6]",
           card: "bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden",
           header: "bg-gray-100 border-b border-gray-200 h-8 flex items-center px-4 space-x-2",
           content: "bg-white text-gray-800 p-8",
@@ -188,48 +260,59 @@ export default function App() {
 
   const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
 
-  // Use a reliable image proxy to handle CORS issues for any external image
-  const getCorsFriendlyUrl = (url?: string) => {
-    if (!url) return '';
-    if (url.startsWith('data:')) return url;
-    
-    // Check if it's an external URL
-    try {
-      const urlObj = new URL(url);
-      // Skip proxy for same origin (if any, though in this app likely not)
-      if (urlObj.origin === window.location.origin) return url;
-      
-      // Use wsrv.nl as a high-performance, CORS-enabled image proxy
-      return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
-    } catch {
-      return url;
-    }
+  // 1. User clicks Export
+  const handleExport = () => {
+    setIsExporting(true);
+    // Increment version to force a complete re-mount of the preview component
+    setExportVersion(v => v + 1);
   };
 
-  const handleExport = async () => {
-    if (!exportRef.current) return;
-    setIsExporting(true);
-    try {
-      // Ensure fonts and images are loaded
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const dataUrl = await toPng(exportRef.current, { 
-        cacheBust: true,
-        pixelRatio: 2, 
-        // useCORS removed as it is not a valid option for html-to-image
-      });
-      
-      const link = document.createElement('a');
-      link.download = `markdownposter-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-    } catch (error) {
-      console.error('Export failed', error);
-      alert('导出图片失败。这可能是因为网络连接问题，或图片服务限制了访问。');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  // 2. Effect triggers when exportVersion changes
+  useEffect(() => {
+    if (exportVersion === 0) return; // Skip initial render
+
+    const performExport = async () => {
+      if (!exportRef.current) return;
+
+      try {
+        // Wait for the fresh DOM to be mounted and painted
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 800)));
+
+        // Pre-check images again on the FRESH DOM
+        const images = Array.from(exportRef.current.querySelectorAll('img')) as HTMLImageElement[];
+        await Promise.all(images.map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+                img.onload = () => resolve(null);
+                img.onerror = () => resolve(null);
+            });
+        }));
+
+        // Extra buffer after images load
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        const dataUrl = await toPng(exportRef.current, { 
+          pixelRatio: 2,
+          skipAutoScale: true,
+          // IMPORTANT: cacheBust is FALSE. We are using Blob URLs which are local and specific.
+          // Using cacheBust would try to fetch the Blob URL with a query param, which might fail or be weird.
+          cacheBust: false, 
+        });
+        
+        const link = document.createElement('a');
+        link.download = `markdownposter-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+      } catch (error) {
+        console.error('Export failed', error);
+        alert('导出图片失败，请重试。');
+      } finally {
+        setIsExporting(false);
+      }
+    };
+
+    performExport();
+  }, [exportVersion]);
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -324,10 +407,11 @@ export default function App() {
             {/* 
                 THE EXPORT FRAME 
                 Outer container captured by export. 
-                UPDATED: max-w-none to allow infinite resizing per user request, and md:w-[75%] for slightly larger visual footprint
+                KEY PROP ADDED HERE: Forces complete remount when exportVersion changes
             */}
             <div 
               ref={exportRef}
+              key={`export-container-${exportVersion}`}
               className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
             >
               
@@ -371,15 +455,8 @@ export default function App() {
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      img: ({node, ...props}) => (
-                        <img 
-                          {...props} 
-                          src={getCorsFriendlyUrl(typeof props.src === 'string' ? props.src : undefined)}
-                          className="max-w-full h-auto rounded-lg shadow-sm mx-auto block"
-                          loading="eager" 
-                          crossOrigin="anonymous" 
-                        />
-                      )
+                      // USE StableImage for all images to ensure WYSIWYG
+                      img: StableImage
                     }}
                   >
                     {markdown}
