@@ -113,7 +113,8 @@ const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageEl
       src={blobSrc || ""} 
       alt={alt} 
       {...props} 
-      className="max-w-full h-auto rounded-lg shadow-sm mx-auto block"
+      // UPDATED: Changed from 'max-w-full' to 'w-full' to force full width
+      className="w-full h-auto rounded-lg shadow-sm mx-auto block object-cover"
     />
   );
 };
@@ -135,6 +136,60 @@ export default function App() {
   const [leftWidth, setLeftWidth] = useState(50); 
   
   const exportRef = useRef<HTMLDivElement>(null);
+  
+  // Ref for Textarea to handle cursor insertion
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Markdown Insertion Logic
+  const insertMarkdownSyntax = (prefix: string, suffix: string = '', placeholder: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = textarea.value;
+    
+    const selectedText = currentText.substring(start, end);
+    const beforeText = currentText.substring(0, start);
+    const afterText = currentText.substring(end);
+
+    let newText = '';
+    let newCursorPosStart = 0;
+    let newCursorPosEnd = 0;
+
+    // Use placeholder if no text is selected
+    const textToInsert = selectedText.length > 0 ? selectedText : placeholder;
+
+    // Smart handling: wrap selection or placeholder
+    newText = beforeText + prefix + textToInsert + suffix + afterText;
+    
+    if (selectedText.length > 0) {
+        // If user selected text, wrap it and keep selection around formatting? 
+        // Or just place cursor at end. Let's place at end for simplicity or standard md behavior.
+        newCursorPosStart = end + prefix.length + suffix.length;
+        newCursorPosEnd = newCursorPosStart;
+    } else {
+        // If placeholder inserted, select the placeholder so user can type over it
+        if (placeholder.length > 0) {
+            newCursorPosStart = start + prefix.length;
+            newCursorPosEnd = newCursorPosStart + placeholder.length;
+        } else {
+            // No text, no placeholder (e.g. bold **|**), cursor in middle
+            newCursorPosStart = start + prefix.length;
+            newCursorPosEnd = newCursorPosStart;
+        }
+    }
+
+    setMarkdown(newText);
+
+    // We need to wait for React to update the state and re-render the value
+    requestAnimationFrame(() => {
+        if (textareaRef.current) {
+            textareaRef.current.focus();
+            textareaRef.current.setSelectionRange(newCursorPosStart, newCursorPosEnd);
+        }
+    });
+  };
 
   const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
     mouseDownEvent.preventDefault();
@@ -209,7 +264,6 @@ export default function App() {
         return {
           frame: "bg-[#f5f5f4]",
           card: "bg-white sketch-border p-2",
-          // UPDATED: Changed bg-white to bg-transparent to fix corner overlap issue
           content: "bg-transparent text-gray-900 p-8 font-comic", 
           prose: "prose-slate prose-headings:font-comic",
           watermarkColor: "text-stone-400"
@@ -345,37 +399,84 @@ export default function App() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Editor Panel */}
+        {/* Left: Editor Panel - Updated to Lined Paper Style */}
         <div 
           style={{ width: `${leftWidth}%` }}
-          className="flex flex-col border-r border-gray-200 bg-white z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
+          className="flex flex-col border-r border-[#e0e0e0] bg-[#fdfcf5] z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
         >
-          <div className="h-10 border-b border-gray-100 flex items-center justify-between px-6 bg-gray-50/50">
-             <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">输入源码</span>
-                <a 
-                  href="https://markdown.com.cn/basic-syntax/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-amber-500 transition-colors"
-                  title="Markdown 语法帮助"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </a>
+          {/* Merged Editor Function & Markdown Toolbar */}
+          <div className="h-12 border-b border-[#e8e6df] flex items-center px-4 bg-[#f4f2eb] justify-between">
+             
+             {/* Left Group: Label, Divider, Tools */}
+             <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
+                {/* Editor Label */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-[10px] font-bold text-[#8c8880] uppercase tracking-widest">Editor</span>
+                    <a 
+                    href="https://markdown.com.cn/basic-syntax/headings.html" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[#a8a49c] hover:text-[#8b7e74] transition-colors"
+                    title="Markdown 语法帮助"
+                    >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </a>
+                </div>
+
+                {/* Vertical Divider */}
+                <div className="w-px h-4 bg-[#d1d0c9] flex-shrink-0"></div>
+
+                {/* Markdown Buttons */}
+                <div className="flex items-center gap-1">
+                    <button onClick={() => insertMarkdownSyntax('## ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="标题">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg>
+                    </button>
+                    <button onClick={() => insertMarkdownSyntax('**', '**')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="粗体">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg>
+                    </button>
+                    <button onClick={() => insertMarkdownSyntax('- ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="列表">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    </button>
+                    {/* NEW: Numbered List */}
+                    <button onClick={() => insertMarkdownSyntax('1. ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="数字列表">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
+                    </button>
+                    
+                    <div className="w-px h-3 bg-gray-300 mx-1 flex-shrink-0"></div>
+
+                    <button onClick={() => insertMarkdownSyntax('> ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="引用">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9L9 9.01"/><path d="M15 9L14 9.01"/><path d="M3 21V11C3 6.58 6.58 3 11 3h2c4.42 0 8 3.58 8 8v10H3z"/></svg>
+                    </button>
+                    
+                    <div className="w-px h-3 bg-gray-300 mx-1 flex-shrink-0"></div>
+
+                    <button onClick={() => insertMarkdownSyntax('[', '](https://example.com)', '链接文字')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="链接">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                    </button>
+                    {/* UPDATED: Image insertion button with new URL and placeholder text */}
+                    <button onClick={() => insertMarkdownSyntax('![', '](https://s2.loli.net/2025/12/18/2DTqCZM548pwPGk.png)', '图片描述/可以没有')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="图片">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    </button>
+                </div>
              </div>
-             <label className="cursor-pointer flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors uppercase tracking-wide">
+
+             {/* Right Side: Import Button */}
+             <label className="cursor-pointer flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0 pl-2">
                 <input 
-                  type="file" 
-                  accept=".md,.txt" 
-                  onChange={handleFileImport} 
-                  className="hidden" 
+                type="file" 
+                accept=".md,.txt" 
+                onChange={handleFileImport} 
+                className="hidden" 
                 />
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                导入
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                <span>导入</span>
              </label>
           </div>
+
+          {/* Textarea - Lined Paper Effect - Padding pt-9 (36px) and bg-position:0_0 (0px offset) ensures perfect centering between lines. */}
           <textarea
-            className="flex-1 w-full p-6 resize-none focus:outline-none text-gray-700 font-mono text-sm leading-relaxed"
+            ref={textareaRef}
+            className="flex-1 w-full px-8 pb-8 pt-9 resize-none focus:outline-none text-[#2d2d2d] font-mono text-[15px] leading-[32px] bg-transparent bg-[image:linear-gradient(transparent_31px,#e8e8e8_31px)] bg-[length:100%_32px] bg-[position:0_0] bg-local placeholder-gray-400/50"
             value={markdown}
             onChange={(e) => setMarkdown(e.target.value)}
             placeholder="在此输入 Markdown..."
@@ -390,13 +491,13 @@ export default function App() {
           title="拖动调整宽度"
         >
            {/* Visual Guide Line - shows area of effect */}
-           <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px h-full bg-transparent group-hover:bg-amber-400/50 transition-colors" />
+           <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px h-full bg-transparent group-hover:bg-[#8b7e74]/50 transition-colors" />
            
            {/* Grip Handle - Thinner, Rectangular, Long strip */}
-           <div className="relative z-30 w-2 h-16 bg-white border border-gray-300 shadow-sm flex flex-col items-center justify-center gap-2 group-hover:border-amber-500 group-hover:bg-amber-50 transition-all duration-200">
-             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-amber-600" />
-             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-amber-600" />
-             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-amber-600" />
+           <div className="relative z-30 w-2 h-16 bg-white border border-gray-300 shadow-sm flex flex-col items-center justify-center gap-2 group-hover:border-[#8b7e74] group-hover:bg-[#8b7e74]/10 transition-all duration-200">
+             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-[#8b7e74]" />
+             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-[#8b7e74]" />
+             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-[#8b7e74]" />
            </div>
         </div>
 

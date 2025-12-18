@@ -77,7 +77,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             {/* Toggle Switch */}
             <button 
               onClick={() => setShowWatermark(!showWatermark)}
-              className={`w-9 h-5 flex items-center rounded-full p-1 transition-colors duration-300 focus:outline-none ${showWatermark ? 'bg-amber-500' : 'bg-gray-300'}`}
+              className={`w-9 h-5 flex items-center rounded-full p-1 transition-colors duration-300 focus:outline-none ${showWatermark ? 'bg-[#8b7e74]' : 'bg-gray-300'}`}
             >
               <div 
                 className={`bg-white w-3.5 h-3.5 rounded-full shadow-md transform duration-300 ease-in-out ${showWatermark ? 'translate-x-4' : 'translate-x-0'}`} 
@@ -92,7 +92,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 onChange={(e) => setWatermarkText(e.target.value.slice(0, 20))}
                 placeholder="人人智学社 rrzxs.com"
                 maxLength={20}
-                className="w-full bg-white border border-amber-400 text-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-all placeholder:text-gray-400"
+                className="w-full bg-white border border-[#8b7e74]/50 text-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#8b7e74]/20 focus:border-[#8b7e74] transition-all placeholder:text-gray-400"
               />
             </div>
         </div>
@@ -113,7 +113,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 onClick={() => setFontSize(option.value)}
                 className={`w-8 py-1 rounded text-xs font-bold transition-all ${
                   fontSize === option.value 
-                    ? 'bg-white shadow text-amber-600' 
+                    ? 'bg-white shadow text-[#8b7e74]' 
                     : 'text-gray-400 hover:text-gray-600'
                 }`}
                 title={option.label}
@@ -147,7 +147,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           onClick={onExport}
           disabled={isExporting}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all shadow-md ${
-             isExporting ? 'bg-gray-400' : 'bg-amber-500 hover:bg-amber-600'
+             isExporting ? 'bg-gray-400' : 'bg-[#8b7e74] hover:bg-[#766a61]'
           }`}
         >
           {isExporting ? '处理中...' : (
