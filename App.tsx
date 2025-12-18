@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
 import { Toolbar } from './components/Toolbar';
+import { PreviewControlBar } from './components/PreviewControlBar';
 import { BorderTheme, BorderStyleConfig, FontSize } from './types';
 
 const DEFAULT_MARKDOWN = `# Markdown 海报生成器
@@ -485,18 +486,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-white">
-      <Toolbar 
-        currentTheme={theme} 
-        setTheme={setTheme} 
-        onExport={handleExport}
-        isExporting={isExporting}
-        showWatermark={showWatermark}
-        setShowWatermark={setShowWatermark}
-        watermarkText={watermarkText}
-        setWatermarkText={setWatermarkText}
-        fontSize={fontSize}
-        setFontSize={setFontSize}
-      />
+      <Toolbar />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Editor Panel */}
@@ -634,69 +624,84 @@ export default function App() {
         </div>
 
         {/* Right: Preview Workspace */}
-        <div className="flex-1 bg-gray-100/80 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px] overflow-y-auto relative flex flex-col items-center min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 bg-gray-100/80 relative">
           
-          <div className="w-full py-10 px-8 flex justify-center min-h-min">
-            
-            <div 
-              ref={exportRef}
-              key={`export-container-${exportVersion}`}
-              className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
-            >
-              
-              <div className={`w-full ${currentStyle.card}`}>
-                {theme === BorderTheme.MacOS && (
-                  <div className={currentStyle.header}>
-                    <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
-                    <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
-                    <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
+          <PreviewControlBar 
+            currentTheme={theme} 
+            setTheme={setTheme} 
+            onExport={handleExport}
+            isExporting={isExporting}
+            showWatermark={showWatermark}
+            setShowWatermark={setShowWatermark}
+            watermarkText={watermarkText}
+            setWatermarkText={setWatermarkText}
+            fontSize={fontSize}
+            setFontSize={setFontSize}
+          />
+          
+          <div className="flex-1 overflow-y-auto flex flex-col items-center bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]">
+             <div className="w-full py-10 px-8 flex justify-center min-h-min">
+              <div 
+                ref={exportRef}
+                key={`export-container-${exportVersion}`}
+                className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
+              >
+                
+                <div className={`w-full ${currentStyle.card}`}>
+                  {theme === BorderTheme.MacOS && (
+                    <div className={currentStyle.header}>
+                      <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
+                      <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
+                      <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
+                    </div>
+                  )}
+
+                  {theme === BorderTheme.Sunset && (
+                     <div className={currentStyle.header}>
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                          <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                        </div>
+                        <div className="flex-1 text-center text-xs text-orange-800/50 font-bold uppercase tracking-widest">日落模式</div>
+                     </div>
+                  )}
+
+                  {theme === BorderTheme.Candy && (
+                     <div className={currentStyle.header}>
+                        <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
+                        <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
+                        <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
+                     </div>
+                  )}
+
+                  {theme === BorderTheme.Ocean && (
+                     <div className={currentStyle.header}>
+                        <div className="text-[10px] text-cyan-500/50 font-mono">SYS.01 // 在线</div>
+                     </div>
+                  )}
+                  
+                  <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none`}>
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        img: StableImage
+                      }}
+                    >
+                      {markdown}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+
+                {showWatermark && (
+                  <div className={`mt-6 text-right opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor}`}>
+                    {watermarkText || "人人智学社 rrzxs.com"}
                   </div>
                 )}
 
-                {theme === BorderTheme.Sunset && (
-                   <div className={currentStyle.header}>
-                      <div className="flex space-x-1">
-                        <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                        <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                      </div>
-                      <div className="flex-1 text-center text-xs text-orange-800/50 font-bold uppercase tracking-widest">日落模式</div>
-                   </div>
-                )}
-
-                {theme === BorderTheme.Candy && (
-                   <div className={currentStyle.header}>
-                      <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
-                      <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
-                      <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
-                   </div>
-                )}
-
-                {theme === BorderTheme.Ocean && (
-                   <div className={currentStyle.header}>
-                      <div className="text-[10px] text-cyan-500/50 font-mono">SYS.01 // 在线</div>
-                   </div>
-                )}
-                
-                <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none`}>
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      img: StableImage
-                    }}
-                  >
-                    {markdown}
-                  </ReactMarkdown>
-                </div>
               </div>
-
-              {showWatermark && (
-                <div className={`mt-6 text-right opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor}`}>
-                  {watermarkText || "人人智学社 rrzxs.com"}
-                </div>
-              )}
-
             </div>
           </div>
+
         </div>
       </div>
     </div>
