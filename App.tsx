@@ -553,7 +553,7 @@ export default function App() {
                 )}
                 
                 {/* Content Body */}
-                <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px]`}>
+                <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none`}>
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
