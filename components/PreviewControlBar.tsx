@@ -45,15 +45,16 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   setFontSize
 }) => {
   return (
-    <div className="h-12 border-b border-gray-200 bg-gray-50/90 backdrop-blur-sm flex items-center relative z-20 shrink-0">
+    <div className="h-12 border-b border-gray-200 bg-gray-50/90 backdrop-blur-sm flex items-center justify-between px-4 sm:px-6 gap-4 relative z-20 shrink-0">
       
-      {/* Centered Controls Container */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-6 overflow-x-auto no-scrollbar max-w-full px-16">
+      {/* Dynamic Centered Controls Container */}
+      {/* flex-1 ensures it takes up available space, justify-center tries to keep it in the middle of that space */}
+      <div className="flex-1 flex items-center justify-center overflow-hidden min-w-0">
+        <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto no-scrollbar max-w-full px-2">
           
           {/* Watermark Controls */}
           <div className="flex items-center gap-3 flex-shrink-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">署名</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">署名</span>
               
               {/* Toggle Switch */}
               <button 
@@ -66,7 +67,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
               </button>
 
               {/* Input Field */}
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showWatermark ? 'w-48 opacity-100' : 'w-0 opacity-0'}`}>
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showWatermark ? 'w-32 sm:w-48 opacity-100' : 'w-0 opacity-0'}`}>
                 <input 
                   type="text" 
                   value={watermarkText}
@@ -82,7 +83,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
 
           {/* Font Size Selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">字号</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">字号</span>
             <div className="flex items-center bg-gray-200/50 rounded-md border border-gray-200 p-0.5">
               {[
                 { label: 'S', value: FontSize.Small, icon: 'text-xs' },
@@ -109,7 +110,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
 
           {/* Theme Selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">主题</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">主题</span>
             <select 
               value={currentTheme}
               onChange={(e) => setTheme(e.target.value as BorderTheme)}
@@ -129,8 +130,8 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
         </div>
       </div>
 
-      {/* Export Actions (Absolute Right) */}
-      <div className="absolute right-8 flex items-center gap-3 z-30">
+      {/* Export Actions (Fixed Right) */}
+      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
         {/* Copy Image Button */}
         <button
           onClick={onCopyImage}
@@ -140,7 +141,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
               ? 'bg-gray-400 text-white' 
               : 'bg-[#997343] text-white hover:bg-[#85633e] active:scale-95'
           }`}
-          title="剪贴板"
+          title="复制图片到剪贴板"
         >
            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
            <span className="hidden sm:inline">复制</span>
@@ -155,12 +156,12 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                 ? 'bg-gray-400' 
                 : 'bg-[#997343] hover:bg-[#85633e] active:scale-95'
           }`}
-          title="图片"
+          title="导出为 PNG"
         >
           {isExporting ? '处理中...' : (
             <>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              导出
+              <span className="hidden sm:inline">导出</span>
             </>
           )}
         </button>
