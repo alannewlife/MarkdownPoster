@@ -13,6 +13,7 @@ interface PreviewControlBarProps {
   setWatermarkText: (text: string) => void;
   fontSize: FontSize;
   setFontSize: (size: FontSize) => void;
+  isDarkMode?: boolean; // Changed from isZenMode
 }
 
 const themes = Object.values(BorderTheme);
@@ -42,24 +43,32 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   watermarkText,
   setWatermarkText,
   fontSize,
-  setFontSize
+  setFontSize,
+  isDarkMode = false
 }) => {
   return (
-    <div className="h-12 border-b border-gray-200 bg-gray-50/90 backdrop-blur-sm flex items-center justify-between px-4 sm:px-6 gap-4 relative z-20 shrink-0">
+    <div className={`h-12 border-b flex items-center justify-between px-4 sm:px-6 gap-4 relative z-20 shrink-0 transition-colors duration-500 
+      ${isDarkMode 
+        ? 'bg-[#1e2227] border-[#181a1f] text-[#abb2bf]' // Dark Mode
+        : 'border-gray-200 bg-gray-50/90 backdrop-blur-sm text-gray-700'
+      }`}>
       
       {/* Dynamic Centered Controls Container */}
-      {/* flex-1 ensures it takes up available space, justify-center tries to keep it in the middle of that space */}
       <div className="flex-1 flex items-center justify-center overflow-hidden min-w-0">
         <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto no-scrollbar max-w-full px-2">
           
           {/* Watermark Controls */}
           <div className="flex items-center gap-3 flex-shrink-0">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">署名</span>
+              <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:inline transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-gray-400'}`}>署名</span>
               
               {/* Toggle Switch */}
               <button 
                 onClick={() => setShowWatermark(!showWatermark)}
-                className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-300 focus:outline-none ${showWatermark ? 'bg-gray-700' : 'bg-gray-300'}`}
+                className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-300 focus:outline-none ${
+                  showWatermark 
+                    ? (isDarkMode ? 'bg-[#98c379]' : 'bg-gray-700') // Earthy Green for active
+                    : (isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300')
+                }`}
               >
                 <div 
                   className={`bg-white w-3 h-3 rounded-full shadow-md transform duration-300 ease-in-out ${showWatermark ? 'translate-x-4' : 'translate-x-0'}`} 
@@ -74,17 +83,21 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                   onChange={(e) => setWatermarkText(e.target.value.slice(0, 30))}
                   placeholder="人人智学社 rrzxs.com"
                   maxLength={30}
-                  className="w-full bg-white border border-gray-300 text-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-gray-400 transition-all placeholder:text-gray-400"
+                  className={`w-full text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 transition-all placeholder:text-gray-500 ${
+                    isDarkMode 
+                      ? 'bg-[#282c34] border border-[#3e4451] text-[#d4cfbf] focus:ring-[#abb2bf]/30' 
+                      : 'bg-white border border-gray-300 text-gray-700 focus:ring-gray-400'
+                  }`}
                 />
               </div>
           </div>
 
-          <div className="h-4 w-px bg-gray-200 flex-shrink-0"></div>
+          <div className={`h-4 w-px flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-200'}`}></div>
 
           {/* Font Size Selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">字号</span>
-            <div className="flex items-center bg-gray-200/50 rounded-md border border-gray-200 p-0.5">
+            <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:inline transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-gray-400'}`}>字号</span>
+            <div className={`flex items-center rounded-md border p-0.5 transition-colors ${isDarkMode ? 'bg-[#282c34] border-[#3e4451]' : 'bg-gray-200/50 border-gray-200'}`}>
               {[
                 { label: 'S', value: FontSize.Small, icon: 'text-xs' },
                 { label: 'M', value: FontSize.Medium, icon: 'text-sm' },
@@ -95,8 +108,8 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                   onClick={() => setFontSize(option.value)}
                   className={`w-7 h-6 flex items-center justify-center rounded text-xs font-bold transition-all ${
                     fontSize === option.value 
-                      ? 'bg-white shadow-sm text-gray-800' 
-                      : 'text-gray-400 hover:text-gray-600'
+                      ? (isDarkMode ? 'bg-[#3e4451] shadow-sm text-[#d4cfbf]' : 'bg-white shadow-sm text-gray-800')
+                      : (isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-gray-400 hover:text-gray-600')
                   }`}
                   title={option.label}
                 >
@@ -106,24 +119,30 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
             </div>
           </div>
 
-          <div className="h-4 w-px bg-gray-200 flex-shrink-0"></div>
+          <div className={`h-4 w-px flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-200'}`}></div>
 
           {/* Theme Selector */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">主题</span>
+            <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:inline transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-gray-400'}`}>主题</span>
             <select 
               value={currentTheme}
               onChange={(e) => setTheme(e.target.value as BorderTheme)}
-              className="bg-white border border-gray-300 text-xs font-bold text-gray-700 py-1 pl-2 pr-6 rounded focus:outline-none cursor-pointer hover:border-gray-400 transition-colors h-7 focus:ring-1 focus:ring-gray-200 appearance-none"
+              className={`text-xs font-bold py-1 pl-2 pr-6 rounded focus:outline-none cursor-pointer hover:border-opacity-50 transition-colors h-7 focus:ring-1 appearance-none border ${
+                isDarkMode 
+                  ? 'bg-[#282c34] border-[#3e4451] text-[#d4cfbf] hover:border-[#abb2bf] focus:ring-[#abb2bf]/30' 
+                  : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 focus:ring-gray-200'
+              }`}
               style={{
-                backgroundImage: `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                backgroundImage: isDarkMode 
+                  ? `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239da5b4' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`
+                  : `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
                 backgroundPosition: 'right 0.25rem center',
                 backgroundRepeat: 'no-repeat',
                 backgroundSize: '1.25em 1.25em'
               }}
             >
               {themes.map(t => (
-                <option key={t} value={t}>{themeNames[t]}</option>
+                <option key={t} value={t} className={isDarkMode ? 'bg-[#282c34]' : ''}>{themeNames[t]}</option>
               ))}
             </select>
           </div>
@@ -139,7 +158,9 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
           className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold transition-all shadow-sm ${
             isExporting 
               ? 'bg-gray-400 text-white' 
-              : 'bg-[#997343] text-white hover:bg-[#85633e] active:scale-95'
+              : (isDarkMode 
+                  ? 'bg-[#3e4451] text-[#d4cfbf] hover:bg-[#4b5263] active:scale-95 border border-[#181a1f]' 
+                  : 'bg-[#997343] text-white hover:bg-[#85633e] active:scale-95')
           }`}
           title="复制图片到剪贴板"
         >
@@ -154,7 +175,9 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
           className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold text-white transition-all shadow-sm ${
               isExporting 
                 ? 'bg-gray-400' 
-                : 'bg-[#997343] hover:bg-[#85633e] active:scale-95'
+                : (isDarkMode 
+                    ? 'bg-[#e5c07b] text-[#282c34] hover:bg-[#d19a66] active:scale-95' // Earthy Gold/Orange
+                    : 'bg-[#997343] hover:bg-[#85633e] active:scale-95')
           }`}
           title="导出为 PNG"
         >

@@ -120,6 +120,7 @@ const STORAGE_KEY_THEME = 'markdown_poster_theme';
 const STORAGE_KEY_FONT_SIZE = 'markdown_poster_fontsize';
 const STORAGE_KEY_WATERMARK_SHOW = 'markdown_poster_watermark_show';
 const STORAGE_KEY_WATERMARK_TEXT = 'markdown_poster_watermark_text';
+const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
 
 // Max History Steps
 const MAX_HISTORY_SIZE = 10;
@@ -156,6 +157,19 @@ export default function App() {
     return saved !== null ? saved : "";
   });
 
+  // 5. Dark Mode (with system preference fallback)
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_DARK_MODE);
+    if (saved !== null) {
+        return saved === 'true';
+    }
+    // Fallback to system preference
+    if (typeof window !== 'undefined') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
   // --- PERSISTENCE EFFECTS ---
   
   useEffect(() => {
@@ -177,6 +191,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_WATERMARK_TEXT, watermarkText);
   }, [watermarkText]);
+  
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_DARK_MODE, String(isDarkMode));
+  }, [isDarkMode]);
 
   // ---------------------------
 
@@ -195,6 +213,11 @@ export default function App() {
   });
   const [historyIndex, setHistoryIndex] = useState(0);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // --- THEME TOGGLE LOGIC ---
+  const toggleTheme = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+  }, []);
 
   // --- METADATA CALCULATIONS ---
   const wordCount = useMemo(() => {
@@ -560,19 +583,36 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      <Toolbar />
+    <div className={`flex flex-col h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#23272e]' : 'bg-white'}`}>
+      
+      {/* 
+        TOOLBAR: 
+        Simply sticky, no complex hiding/revealing behavior. 
+        It sits at the top and switches color based on theme.
+      */}
+      <div className="relative z-50">
+         <Toolbar isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+      </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Left: Editor Panel */}
         <div 
           style={{ width: `${leftWidth}%` }}
-          className="flex flex-col border-r border-[#e0e0e0] bg-[#fdfcf5] z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative"
+          className={`flex flex-col z-10 relative transition-colors duration-500
+            ${isDarkMode 
+                ? 'bg-[#23272e] shadow-none' // Dark Mode: Deep gray BG
+                : 'bg-[#fdfcf5] border-r border-[#e0e0e0] shadow-[4px_0_24px_rgba(0,0,0,0.02)]' // Light Mode
+            }
+          `}
         >
-          <div className="h-12 border-b border-[#e8e6df] flex items-center px-4 bg-[#f4f2eb] justify-between relative z-20">
+          {/* Editor Header */}
+          <div className={`h-12 flex items-center px-4 justify-between relative z-20 transition-colors duration-500
+             ${isDarkMode ? 'bg-[#1e2227] border-b border-[#181a1f]' : 'bg-[#f4f2eb] border-b border-[#e8e6df]'}
+          `}>
              
              {/* Left Group */}
              <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
+                
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                     <span className="text-[10px] font-bold text-[#8c8880] uppercase tracking-widest">Editor</span>
                     <a 
@@ -585,36 +625,36 @@ export default function App() {
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </a>
                 </div>
-
+                
                 <div className="w-px h-4 bg-[#d1d0c9] flex-shrink-0"></div>
 
                 {/* Markdown Buttons */}
-                <div className="flex items-center gap-1">
-                    <button onClick={() => insertMarkdownSyntax('## ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="标题">
+                <div className={`flex items-center gap-1 transition-all duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                    <button onClick={() => insertMarkdownSyntax('## ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg>
                     </button>
-                    <button onClick={() => insertMarkdownSyntax('**', '**')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="粗体">
+                    <button onClick={() => insertMarkdownSyntax('**', '**')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="粗体">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg>
                     </button>
-                    <button onClick={() => insertMarkdownSyntax('- ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="列表">
+                    <button onClick={() => insertMarkdownSyntax('- ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="列表">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
                     </button>
-                    <button onClick={() => insertMarkdownSyntax('1. ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="数字列表">
+                    <button onClick={() => insertMarkdownSyntax('1. ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="数字列表">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
                     </button>
                     
-                    <div className="w-px h-3 bg-gray-300 mx-1 flex-shrink-0"></div>
+                    <div className={`w-px h-3 mx-1 flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
 
-                    <button onClick={() => insertMarkdownSyntax('> ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="引用">
+                    <button onClick={() => insertMarkdownSyntax('> ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="引用">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9L9 9.01"/><path d="M15 9L14 9.01"/><path d="M3 21V11C3 6.58 6.58 3 11 3h2c4.42 0 8 3.58 8 8v10H3z"/></svg>
                     </button>
                     
-                    <div className="w-px h-3 bg-gray-300 mx-1 flex-shrink-0"></div>
+                    <div className={`w-px h-3 mx-1 flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
 
-                    <button onClick={() => insertMarkdownSyntax('[', '](https://example.com)', '链接文字')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="链接">
+                    <button onClick={() => insertMarkdownSyntax('[', '](https://example.com)', '链接文字')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="链接">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                     </button>
-                    <button onClick={() => insertMarkdownSyntax('![', '](https://s2.loli.net/2025/12/18/2DTqCZM548pwPGk.png)', '图片描述/可以没有')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="图片">
+                    <button onClick={() => insertMarkdownSyntax('![', '](https://s2.loli.net/2025/12/18/2DTqCZM548pwPGk.png)', '图片描述/可以没有')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="图片">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></circle><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     </button>
                 </div>
@@ -628,19 +668,27 @@ export default function App() {
                      type="button"
                      onClick={handleUndo}
                      disabled={historyIndex <= 0}
-                     className={`p-1.5 rounded transition-colors ${historyIndex > 0 ? 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]' : 'text-gray-300 cursor-not-allowed'}`}
+                     className={`p-1.5 rounded transition-colors ${
+                        historyIndex > 0 
+                            ? (isDarkMode ? 'text-[#5c6370] hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]') 
+                            : 'text-gray-300/20 cursor-not-allowed'
+                     }`}
                      title="撤销 (Ctrl+Z)"
                    >
                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
                    </button>
                    
-                   <div className="w-px h-3 bg-gray-300 mx-1"></div>
+                   <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
 
                    <button 
                      type="button"
                      onClick={handleRedo}
                      disabled={historyIndex >= history.length - 1}
-                     className={`p-1.5 rounded transition-colors ${historyIndex < history.length - 1 ? 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]' : 'text-gray-300 cursor-not-allowed'}`}
+                     className={`p-1.5 rounded transition-colors ${
+                        historyIndex < history.length - 1 
+                            ? (isDarkMode ? 'text-[#5c6370] hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]') 
+                            : 'text-gray-300/20 cursor-not-allowed'
+                     }`}
                      title="重做 (Ctrl+Shift+Z)"
                    >
                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
@@ -651,7 +699,7 @@ export default function App() {
                  <div className="flex items-center gap-2">
                     <button
                         onClick={handleSelectAll}
-                        className="flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0"
+                        className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}
                         title="全选"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -659,7 +707,7 @@ export default function App() {
                     </button>
                     <button
                         onClick={handleCopySelection}
-                        className="flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0"
+                        className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}
                         title="复制选中内容"
                     >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
@@ -672,14 +720,14 @@ export default function App() {
                     onClick={() => {
                         updateMarkdownImmediate('');
                     }} 
-                    className="flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-red-500 transition-colors uppercase tracking-wide flex-shrink-0"
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#e06c75]' : 'text-[#8c8880] hover:text-red-500'}`}
                     title="清空"
                  >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     <span>清空</span>
                  </button>
 
-                 <label className="cursor-pointer flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0">
+                 <label className={`cursor-pointer flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}>
                     <input 
                     type="file" 
                     accept=".md,.txt" 
@@ -693,14 +741,18 @@ export default function App() {
           </div>
 
           <div className="absolute top-[3.5rem] right-8 z-10 pointer-events-none select-none">
-             <span className="text-[10px] font-medium text-[#8c8880]/60 font-sans tracking-widest">
+             <span className={`text-[10px] font-medium font-sans tracking-widest transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-[#8c8880]/60'}`}>
                {wordCount} 字 <span className="mx-1 opacity-50">|</span> {dateStr}
              </span>
           </div>
 
           <textarea
             ref={textareaRef}
-            className="flex-1 w-full px-8 pb-8 pt-9 resize-none focus:outline-none text-[#2d2d2d] font-mono text-[15px] leading-[32px] bg-transparent bg-[image:linear-gradient(transparent_31px,#e8e8e8_31px)] bg-[length:100%_32px] bg-[position:0_0] bg-local placeholder-gray-400/50"
+            className={`flex-1 w-full px-8 pb-8 pt-9 resize-none focus:outline-none font-mono text-[15px] leading-[32px] bg-[length:100%_32px] bg-[position:0_0] bg-local transition-colors duration-500 ${
+                isDarkMode 
+                ? 'text-[#d4cfbf] bg-[image:linear-gradient(transparent_31px,#333842_31px)] placeholder-[#5c6370] bg-[#23272e]' // Earthy warm gray text
+                : 'text-[#2d2d2d] bg-transparent bg-[image:linear-gradient(transparent_31px,#e8e8e8_31px)] placeholder-gray-400/50'
+            }`}
             value={markdown}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
@@ -715,17 +767,22 @@ export default function App() {
           onMouseDown={startResizing}
           title="拖动调整宽度"
         >
-           <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px h-full bg-transparent group-hover:bg-[#8b7e74]/50 transition-colors" />
+           <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-px h-full transition-colors ${isDarkMode ? 'bg-transparent group-hover:bg-[#5c6370]/50' : 'bg-transparent group-hover:bg-[#8b7e74]/50'}`} />
            
-           <div className="relative z-30 w-2 h-16 bg-white border border-gray-300 shadow-sm flex flex-col items-center justify-center gap-2 group-hover:border-[#8b7e74] group-hover:bg-[#8b7e74]/10 transition-all duration-200">
-             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-[#8b7e74]" />
-             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-[#8b7e74]" />
-             <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-[#8b7e74]" />
+           <div className={`relative z-30 w-2 h-16 border shadow-sm flex flex-col items-center justify-center gap-2 transition-all duration-200 
+               ${isDarkMode 
+                 ? 'bg-[#1e2227] border-[#181a1f] group-hover:bg-[#2c313a] group-hover:border-[#5c6370]' 
+                 : 'bg-white border-gray-300 group-hover:border-[#8b7e74] group-hover:bg-[#8b7e74]/10'
+               }`}
+           >
+             <div className={`w-0.5 h-0.5 ${isDarkMode ? 'bg-[#5c6370]' : 'bg-gray-400 group-hover:bg-[#8b7e74]'}`} />
+             <div className={`w-0.5 h-0.5 ${isDarkMode ? 'bg-[#5c6370]' : 'bg-gray-400 group-hover:bg-[#8b7e74]'}`} />
+             <div className={`w-0.5 h-0.5 ${isDarkMode ? 'bg-[#5c6370]' : 'bg-gray-400 group-hover:bg-[#8b7e74]'}`} />
            </div>
         </div>
 
         {/* Right: Preview Workspace */}
-        <div className="flex-1 flex flex-col min-w-0 bg-gray-100/80 relative">
+        <div className={`flex-1 flex flex-col min-w-0 relative transition-colors duration-500 ${isDarkMode ? 'bg-[#1a1d23]' : 'bg-gray-100/80'}`}>
           
           <PreviewControlBar 
             currentTheme={theme} 
@@ -739,9 +796,14 @@ export default function App() {
             setWatermarkText={setWatermarkText}
             fontSize={fontSize}
             setFontSize={setFontSize}
+            isDarkMode={isDarkMode}
           />
           
-          <div className="flex-1 overflow-y-auto flex flex-col items-center bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]">
+          <div className={`flex-1 overflow-y-auto flex flex-col items-center transition-all duration-500 [background-size:20px_20px] ${
+              isDarkMode 
+                ? 'bg-[radial-gradient(#333842_1px,transparent_1px)]' 
+                : 'bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]'
+          }`}>
              <div className="w-full pt-10 pb-24 px-8 flex justify-center min-h-min">
               <div 
                 ref={exportRef}
