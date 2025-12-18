@@ -5,6 +5,7 @@ interface PreviewControlBarProps {
   currentTheme: BorderTheme;
   setTheme: (theme: BorderTheme) => void;
   onExport: () => void;
+  onCopyImage: () => void; // New prop
   isExporting: boolean;
   showWatermark: boolean;
   setShowWatermark: (show: boolean) => void;
@@ -34,6 +35,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   currentTheme, 
   setTheme, 
   onExport,
+  onCopyImage,
   isExporting,
   showWatermark,
   setShowWatermark,
@@ -64,13 +66,13 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
               </button>
 
               {/* Input Field */}
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showWatermark ? 'w-32 opacity-100' : 'w-0 opacity-0'}`}>
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showWatermark ? 'w-48 opacity-100' : 'w-0 opacity-0'}`}>
                 <input 
                   type="text" 
                   value={watermarkText}
-                  onChange={(e) => setWatermarkText(e.target.value.slice(0, 20))}
-                  placeholder="人人智学社"
-                  maxLength={20}
+                  onChange={(e) => setWatermarkText(e.target.value.slice(0, 30))}
+                  placeholder="人人智学社 rrzxs.com"
+                  maxLength={30}
                   className="w-full bg-white border border-gray-300 text-gray-700 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-gray-400 transition-all placeholder:text-gray-400"
                 />
               </div>
@@ -127,19 +129,38 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
         </div>
       </div>
 
-      {/* Export Button (Absolute Right) */}
-      <div className="absolute right-4 flex items-center z-30">
+      {/* Export Actions (Absolute Right) */}
+      <div className="absolute right-8 flex items-center gap-3 z-30">
+        {/* Copy Image Button */}
+        <button
+          onClick={onCopyImage}
+          disabled={isExporting}
+          className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold transition-all shadow-sm ${
+            isExporting 
+              ? 'bg-gray-400 text-white' 
+              : 'bg-[#997343] text-white hover:bg-[#85633e] active:scale-95'
+          }`}
+          title="剪贴板"
+        >
+           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+           <span className="hidden sm:inline">复制</span>
+        </button>
+
+        {/* Download Button */}
         <button
           onClick={onExport}
           disabled={isExporting}
           className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold text-white transition-all shadow-sm ${
-              isExporting ? 'bg-gray-400' : 'bg-gray-800 hover:bg-gray-700'
+              isExporting 
+                ? 'bg-gray-400' 
+                : 'bg-[#997343] hover:bg-[#85633e] active:scale-95'
           }`}
+          title="图片"
         >
           {isExporting ? '处理中...' : (
             <>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              导出图片
+              导出
             </>
           )}
         </button>

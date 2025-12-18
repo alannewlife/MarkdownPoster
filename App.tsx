@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { toPng } from 'html-to-image';
+import { toPng, toBlob } from 'html-to-image';
 import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
 import { BorderTheme, BorderStyleConfig, FontSize } from './types';
@@ -182,6 +182,7 @@ export default function App() {
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportVersion, setExportVersion] = useState(0);
+  const [exportAction, setExportAction] = useState<'download' | 'copy' | null>(null);
   const [leftWidth, setLeftWidth] = useState(50); 
   
   const exportRef = useRef<HTMLDivElement>(null);
@@ -259,6 +260,56 @@ export default function App() {
     }
   };
   
+  // --- EDITOR ACTION HELPERS ---
+
+  const insertTextAtCursor = (textToInsert: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = textarea.value;
+
+    // Replace selected text or insert at cursor
+    const beforeText = currentText.substring(0, start);
+    const afterText = currentText.substring(end);
+
+    const newText = beforeText + textToInsert + afterText;
+    const newCursorPos = start + textToInsert.length;
+
+    updateMarkdownImmediate(newText);
+
+    requestAnimationFrame(() => {
+        if (textareaRef.current) {
+            textareaRef.current.focus();
+            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+    });
+  };
+
+  const handleSelectAll = () => {
+    textareaRef.current?.focus();
+    textareaRef.current?.select();
+  };
+  
+  const handleCopySelection = async () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    
+    // Only copy if something is selected
+    if (start === end) return;
+
+    const text = textarea.value.substring(start, end);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
   const insertMarkdownSyntax = (prefix: string, suffix: string = '', placeholder: string = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -424,20 +475,21 @@ export default function App() {
 
   const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
 
-  const handleExport = () => {
+  const handleExport = (type: 'download' | 'copy') => {
     setIsExporting(true);
+    setExportAction(type);
     setExportVersion(v => v + 1);
   };
 
   useEffect(() => {
-    if (exportVersion === 0) return; 
+    if (exportVersion === 0 || !exportAction) return; 
 
     const performExport = async () => {
       if (!exportRef.current) return;
 
       try {
+        // Wait for images to load (simplified check + slight delay for rendering)
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 800)));
-
         const images = Array.from(exportRef.current.querySelectorAll('img')) as HTMLImageElement[];
         await Promise.all(images.map(img => {
             if (img.complete) return Promise.resolve();
@@ -446,29 +498,42 @@ export default function App() {
                 img.onerror = () => resolve(null);
             });
         }));
-
         await new Promise(resolve => setTimeout(resolve, 200));
 
-        const dataUrl = await toPng(exportRef.current, { 
+        const options = { 
           pixelRatio: 2,
           skipAutoScale: true,
           cacheBust: false, 
-        });
-        
-        const link = document.createElement('a');
-        link.download = `markdownposter-${Date.now()}.png`;
-        link.href = dataUrl;
-        link.click();
+        };
+
+        if (exportAction === 'download') {
+            const dataUrl = await toPng(exportRef.current, options);
+            const link = document.createElement('a');
+            link.download = `markdownposter-${Date.now()}.png`;
+            link.href = dataUrl;
+            link.click();
+        } else if (exportAction === 'copy') {
+            // toBlob is better for clipboard
+            const blob = await toBlob(exportRef.current, options);
+            if (blob) {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ [blob.type]: blob })
+                ]);
+                // Could add a toast here
+                alert('图片已复制到剪贴板！'); 
+            }
+        }
       } catch (error) {
         console.error('Export failed', error);
-        alert('导出图片失败，请重试。');
+        alert('操作失败，请重试。');
       } finally {
         setIsExporting(false);
+        setExportAction(null);
       }
     };
 
     performExport();
-  }, [exportVersion]);
+  }, [exportVersion, exportAction]);
 
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -572,6 +637,26 @@ export default function App() {
                    </button>
                  </div>
 
+                 {/* Selection/Clipboard Buttons */}
+                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={handleSelectAll}
+                        className="flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0"
+                        title="全选"
+                    >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        <span>全选</span>
+                    </button>
+                    <button
+                        onClick={handleCopySelection}
+                        className="flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0"
+                        title="复制选中内容"
+                    >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                        <span>复制</span>
+                    </button>
+                 </div>
+
                  <button 
                     type="button"
                     onClick={() => {
@@ -629,7 +714,8 @@ export default function App() {
           <PreviewControlBar 
             currentTheme={theme} 
             setTheme={setTheme} 
-            onExport={handleExport}
+            onExport={() => handleExport('download')}
+            onCopyImage={() => handleExport('copy')}
             isExporting={isExporting}
             showWatermark={showWatermark}
             setShowWatermark={setShowWatermark}
@@ -640,7 +726,7 @@ export default function App() {
           />
           
           <div className="flex-1 overflow-y-auto flex flex-col items-center bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:20px_20px]">
-             <div className="w-full py-10 px-8 flex justify-center min-h-min">
+             <div className="w-full pt-10 pb-24 px-8 flex justify-center min-h-min">
               <div 
                 ref={exportRef}
                 key={`export-container-${exportVersion}`}
