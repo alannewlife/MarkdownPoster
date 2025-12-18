@@ -119,8 +119,18 @@ const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageEl
   );
 };
 
+// LocalStorage Key
+const STORAGE_KEY = 'markdown_poster_draft';
+// Max History Steps - Updated to 10
+const MAX_HISTORY_SIZE = 10;
+
 export default function App() {
-  const [markdown, setMarkdown] = useState<string>(DEFAULT_MARKDOWN);
+  // Initialize state from LocalStorage if available, otherwise use default
+  const [markdown, setMarkdown] = useState<string>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved !== null ? saved : DEFAULT_MARKDOWN;
+  });
+
   const [theme, setTheme] = useState<BorderTheme>(BorderTheme.MacOS);
   const [fontSize, setFontSize] = useState<FontSize>(FontSize.Medium);
   const [isExporting, setIsExporting] = useState(false);
@@ -139,6 +149,100 @@ export default function App() {
   
   // Ref for Textarea to handle cursor insertion
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // --- HISTORY / UNDO SYSTEM ---
+  // Initialize history with the current loaded markdown to ensure consistency
+  const [history, setHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return [saved !== null ? saved : DEFAULT_MARKDOWN];
+  });
+  const [historyIndex, setHistoryIndex] = useState(0);
+  
+  // Fixed: Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout to avoid namespace issues
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Core function to add a new state to history with Limit
+  const pushToHistory = useCallback((newText: string) => {
+    // Calculate new history based on current history and index
+    const nextHistory = history.slice(0, historyIndex + 1);
+    nextHistory.push(newText);
+
+    if (nextHistory.length > MAX_HISTORY_SIZE) {
+      // If exceeding limit, remove the oldest items (keep the last MAX_HISTORY_SIZE)
+      const slicedHistory = nextHistory.slice(nextHistory.length - MAX_HISTORY_SIZE);
+      setHistory(slicedHistory);
+      // The index will now be at the end of this max-sized array
+      setHistoryIndex(MAX_HISTORY_SIZE - 1);
+    } else {
+      setHistory(nextHistory);
+      setHistoryIndex(nextHistory.length - 1);
+    }
+  }, [history, historyIndex]);
+
+  // Handle Undo
+  const handleUndo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setMarkdown(history[newIndex]);
+    }
+  }, [history, historyIndex]);
+
+  // Handle Redo
+  const handleRedo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setMarkdown(history[newIndex]);
+    }
+  }, [history, historyIndex]);
+
+  // Wrapper for typing to debounce history updates
+  // We update visual state immediately, but only save to history after user stops typing for 500ms
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    setMarkdown(newText);
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      // Check if text actually changed to avoid duplicates
+      if (newText !== history[historyIndex]) {
+        pushToHistory(newText);
+      }
+    }, 500);
+  };
+
+  // Immediate update (for buttons like Bold, Clear, Insert)
+  const updateMarkdownImmediate = (newText: string) => {
+    setMarkdown(newText);
+    pushToHistory(newText);
+    
+    // Focus textarea after button updates
+    requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+    });
+  };
+
+  // NEW: Save to LocalStorage whenever markdown changes
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, markdown);
+  }, [markdown]);
+
+  // Handle Keyboard Shortcuts (Ctrl+Z, Ctrl+Shift+Z)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      e.preventDefault(); // Stop browser native undo
+      if (e.shiftKey) {
+        handleRedo();
+      } else {
+        handleUndo();
+      }
+    }
+  };
+  // -----------------------------
 
   // Markdown Insertion Logic
   const insertMarkdownSyntax = (prefix: string, suffix: string = '', placeholder: string = '') => {
@@ -164,28 +268,24 @@ export default function App() {
     newText = beforeText + prefix + textToInsert + suffix + afterText;
     
     if (selectedText.length > 0) {
-        // If user selected text, wrap it and keep selection around formatting? 
-        // Or just place cursor at end. Let's place at end for simplicity or standard md behavior.
         newCursorPosStart = end + prefix.length + suffix.length;
         newCursorPosEnd = newCursorPosStart;
     } else {
-        // If placeholder inserted, select the placeholder so user can type over it
         if (placeholder.length > 0) {
             newCursorPosStart = start + prefix.length;
             newCursorPosEnd = newCursorPosStart + placeholder.length;
         } else {
-            // No text, no placeholder (e.g. bold **|**), cursor in middle
             newCursorPosStart = start + prefix.length;
             newCursorPosEnd = newCursorPosStart;
         }
     }
 
-    setMarkdown(newText);
+    // Use immediate update so this action is undoable
+    updateMarkdownImmediate(newText);
 
-    // We need to wait for React to update the state and re-render the value
+    // Restore cursor position
     requestAnimationFrame(() => {
         if (textareaRef.current) {
-            textareaRef.current.focus();
             textareaRef.current.setSelectionRange(newCursorPosStart, newCursorPosEnd);
         }
     });
@@ -375,7 +475,8 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (e) => {
         if (typeof e.target?.result === 'string') {
-          setMarkdown(e.target.result);
+          // Use immediate update to make it undoable
+          updateMarkdownImmediate(e.target.result);
         }
       };
       reader.readAsText(file);
@@ -455,22 +556,63 @@ export default function App() {
                     </button>
                     {/* UPDATED: Image insertion button with new URL and placeholder text */}
                     <button onClick={() => insertMarkdownSyntax('![', '](https://s2.loli.net/2025/12/18/2DTqCZM548pwPGk.png)', '图片描述/可以没有')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="图片">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></circle><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     </button>
                 </div>
              </div>
 
-             {/* Right Side: Import Button */}
-             <label className="cursor-pointer flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0 pl-2">
-                <input 
-                type="file" 
-                accept=".md,.txt" 
-                onChange={handleFileImport} 
-                className="hidden" 
-                />
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                <span>导入</span>
-             </label>
+             {/* Right Side: Actions (Undo/Redo & Clear & Import) */}
+             <div className="flex items-center gap-3">
+                 {/* Undo/Redo Buttons - Updated: Removed border wrapper, added explicit gray styling for disabled state */}
+                 <div className="flex items-center">
+                   <button 
+                     type="button"
+                     onClick={handleUndo}
+                     disabled={historyIndex <= 0}
+                     className={`p-1.5 rounded transition-colors ${historyIndex > 0 ? 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]' : 'text-gray-300 cursor-not-allowed'}`}
+                     title="撤销 (Ctrl+Z)"
+                   >
+                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+                   </button>
+                   
+                   <div className="w-px h-3 bg-gray-300 mx-1"></div>
+
+                   <button 
+                     type="button"
+                     onClick={handleRedo}
+                     disabled={historyIndex >= history.length - 1}
+                     className={`p-1.5 rounded transition-colors ${historyIndex < history.length - 1 ? 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]' : 'text-gray-300 cursor-not-allowed'}`}
+                     title="重做 (Ctrl+Shift+Z)"
+                   >
+                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+                   </button>
+                 </div>
+
+                 {/* Clear Button - Instant Clear with Custom History Support */}
+                 <button 
+                    type="button"
+                    onClick={() => {
+                        updateMarkdownImmediate('');
+                    }} 
+                    className="flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-red-500 transition-colors uppercase tracking-wide flex-shrink-0"
+                    title="清空"
+                 >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    <span>清空</span>
+                 </button>
+
+                 {/* Import Button */}
+                 <label className="cursor-pointer flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0">
+                    <input 
+                    type="file" 
+                    accept=".md,.txt" 
+                    onChange={handleFileImport} 
+                    className="hidden" 
+                    />
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    <span>导入</span>
+                 </label>
+             </div>
           </div>
 
           {/* Textarea - Lined Paper Effect - Padding pt-9 (36px) and bg-position:0_0 (0px offset) ensures perfect centering between lines. */}
@@ -478,7 +620,8 @@ export default function App() {
             ref={textareaRef}
             className="flex-1 w-full px-8 pb-8 pt-9 resize-none focus:outline-none text-[#2d2d2d] font-mono text-[15px] leading-[32px] bg-transparent bg-[image:linear-gradient(transparent_31px,#e8e8e8_31px)] bg-[length:100%_32px] bg-[position:0_0] bg-local placeholder-gray-400/50"
             value={markdown}
-            onChange={(e) => setMarkdown(e.target.value)}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
             placeholder="在此输入 Markdown..."
             spellCheck={false}
           />
