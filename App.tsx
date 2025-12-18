@@ -196,6 +196,16 @@ export default function App() {
   const [historyIndex, setHistoryIndex] = useState(0);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // --- METADATA CALCULATIONS ---
+  const wordCount = useMemo(() => {
+    return markdown.replace(/\s/g, '').length;
+  }, [markdown]);
+
+  const dateStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
+  }, []);
+
   const pushToHistory = useCallback((newText: string) => {
     const nextHistory = history.slice(0, historyIndex + 1);
     nextHistory.push(newText);
@@ -557,9 +567,9 @@ export default function App() {
         {/* Left: Editor Panel */}
         <div 
           style={{ width: `${leftWidth}%` }}
-          className="flex flex-col border-r border-[#e0e0e0] bg-[#fdfcf5] z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
+          className="flex flex-col border-r border-[#e0e0e0] bg-[#fdfcf5] z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative"
         >
-          <div className="h-12 border-b border-[#e8e6df] flex items-center px-4 bg-[#f4f2eb] justify-between">
+          <div className="h-12 border-b border-[#e8e6df] flex items-center px-4 bg-[#f4f2eb] justify-between relative z-20">
              
              {/* Left Group */}
              <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
@@ -680,6 +690,12 @@ export default function App() {
                     <span>导入</span>
                  </label>
              </div>
+          </div>
+
+          <div className="absolute top-[3.5rem] right-8 z-10 pointer-events-none select-none">
+             <span className="text-[10px] font-medium text-[#8c8880]/60 font-sans tracking-widest">
+               {dateStr} <span className="mx-1 opacity-50">|</span> {wordCount} 字
+             </span>
           </div>
 
           <textarea
