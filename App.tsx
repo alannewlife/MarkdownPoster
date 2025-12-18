@@ -320,7 +320,8 @@ export default function App() {
     setMarkdown(newText);
     pushToHistory(newText);
     requestAnimationFrame(() => {
-        textareaRef.current?.focus();
+        // Prevent scroll to avoid jumping to top when clicking toolbar buttons
+        textareaRef.current?.focus({ preventScroll: true });
     });
   };
 
@@ -356,14 +357,15 @@ export default function App() {
 
     requestAnimationFrame(() => {
         if (textareaRef.current) {
-            textareaRef.current.focus();
+            // Explicitly prevent scroll here as well
+            textareaRef.current.focus({ preventScroll: true });
             textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
         }
     });
   };
 
   const handleSelectAll = () => {
-    textareaRef.current?.focus();
+    textareaRef.current?.focus({ preventScroll: true });
     textareaRef.current?.select();
   };
   
@@ -385,6 +387,7 @@ export default function App() {
     }
   };
 
+  // Helper for generic insert at cursor (used for Bold, Link)
   const insertMarkdownSyntax = (prefix: string, suffix: string = '', placeholder: string = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -422,6 +425,70 @@ export default function App() {
     requestAnimationFrame(() => {
         if (textareaRef.current) {
             textareaRef.current.setSelectionRange(newCursorPosStart, newCursorPosEnd);
+        }
+    });
+  };
+
+  // NEW: Logic for inserting syntax at the START of the current line (List, Quote)
+  const handleLinePrefix = (prefix: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const cursorPosition = textarea.selectionStart;
+    const text = textarea.value;
+
+    // Find the start of the current line (backward search for \n)
+    // selectionStart is 0-based. 
+    // If cursor is at 0, lastIndexOf returns -1, start index becomes 0. Correct.
+    // If cursor is after \n, lastIndexOf returns that index. +1 gives char after \n.
+    const lineStart = text.lastIndexOf('\n', cursorPosition - 1) + 1;
+
+    const beforeLine = text.substring(0, lineStart);
+    const afterLine = text.substring(lineStart);
+
+    // Insert prefix at line start
+    const newText = beforeLine + prefix + afterLine;
+    updateMarkdownImmediate(newText);
+
+    // Shift cursor by prefix length so user keeps relative position
+    const newCursorPos = cursorPosition + prefix.length;
+
+    requestAnimationFrame(() => {
+        if (textareaRef.current) {
+            textareaRef.current.focus({ preventScroll: true });
+            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+    });
+  };
+
+  // NEW: Logic specifically for Headings (#)
+  const handleHeading = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const cursorPosition = textarea.selectionStart;
+    const text = textarea.value;
+
+    const lineStart = text.lastIndexOf('\n', cursorPosition - 1) + 1;
+    
+    // Check first character of the line
+    const firstChar = text.charAt(lineStart);
+    
+    // Logic: If starts with #, add # (no space). If not, add # (with space).
+    const prefix = firstChar === '#' ? '#' : '# ';
+
+    const beforeLine = text.substring(0, lineStart);
+    const afterLine = text.substring(lineStart);
+
+    const newText = beforeLine + prefix + afterLine;
+    updateMarkdownImmediate(newText);
+
+    const newCursorPos = cursorPosition + prefix.length;
+
+    requestAnimationFrame(() => {
+        if (textareaRef.current) {
+            textareaRef.current.focus({ preventScroll: true });
+            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
         }
     });
   };
@@ -722,22 +789,27 @@ export default function App() {
 
                 {/* Markdown Buttons */}
                 <div className={`flex items-center gap-1 transition-all duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                    <button onClick={() => insertMarkdownSyntax('## ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题">
+                    {/* Headings Button - Updated Logic */}
+                    <button onClick={handleHeading} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg>
                     </button>
+                    {/* Bold Button - Keep Standard Logic */}
                     <button onClick={() => insertMarkdownSyntax('**', '**')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="粗体">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg>
                     </button>
-                    <button onClick={() => insertMarkdownSyntax('- ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="列表">
+                    {/* List Button - Updated Logic */}
+                    <button onClick={() => handleLinePrefix('- ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="列表">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
                     </button>
-                    <button onClick={() => insertMarkdownSyntax('1. ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="数字列表">
+                    {/* Number List Button - Updated Logic */}
+                    <button onClick={() => handleLinePrefix('1. ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="数字列表">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
                     </button>
                     
                     <div className={`w-px h-3 mx-1 flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
 
-                    <button onClick={() => insertMarkdownSyntax('> ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="引用">
+                    {/* Quote Button - Updated Logic */}
+                    <button onClick={() => handleLinePrefix('> ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="引用">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9L9 9.01"/><path d="M15 9L14 9.01"/><path d="M3 21V11C3 6.58 6.58 3 11 3h2c4.42 0 8 3.58 8 8v10H3z"/></svg>
                     </button>
                     
