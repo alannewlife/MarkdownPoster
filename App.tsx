@@ -208,8 +208,9 @@ export default function App() {
       case BorderTheme.Sketch:
         return {
           frame: "bg-[#f5f5f4]",
-          card: "bg-white sketch-border p-2 bg-white",
-          content: "bg-white text-gray-900 p-8 font-comic",
+          card: "bg-white sketch-border p-2",
+          // UPDATED: Changed bg-white to bg-transparent to fix corner overlap issue
+          content: "bg-transparent text-gray-900 p-8 font-comic", 
           prose: "prose-slate prose-headings:font-comic",
           watermarkColor: "text-stone-400"
         };
