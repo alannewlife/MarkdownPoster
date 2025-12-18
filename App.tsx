@@ -47,7 +47,7 @@ function createArt() {
 // Helper to handle CORS for initial fetch
 const getCorsFriendlyUrl = (url?: string) => {
   if (!url) return '';
-  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('local://')) return url;
   try {
     const urlObj = new URL(url);
     if (urlObj.origin === window.location.origin) return url;
@@ -58,17 +58,37 @@ const getCorsFriendlyUrl = (url?: string) => {
   }
 };
 
-// NEW: StableImage Component
-const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => {
+// NEW: StableImage Component with VFS support
+// We use 'any' for props to handle react-markdown specific props like 'node' comfortably
+const StableImage = ({ src, alt, imagePool, node, ...props }: any) => {
   const [blobSrc, setBlobSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!src) return;
-    
+
     let isMounted = true;
     setIsLoading(true);
 
+    // 1. Handle Virtual File System (local://)
+    if (src.startsWith('local://')) {
+      const imgId = src.replace('local://', '');
+      const localData = imagePool?.[imgId];
+      
+      if (localData) {
+        if (isMounted) {
+            setBlobSrc(localData);
+            setIsLoading(false);
+        }
+      } else {
+        // Fallback or error state for missing local image
+        console.warn(`Image ID ${imgId} not found in pool.`);
+        if (isMounted) setIsLoading(false);
+      }
+      return; 
+    }
+
+    // 2. Handle External Images via Proxy
     const proxyUrl = getCorsFriendlyUrl(src);
 
     fetch(proxyUrl)
@@ -94,7 +114,7 @@ const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageEl
         URL.revokeObjectURL(blobSrc);
       }
     };
-  }, [src]); 
+  }, [src, imagePool]); 
 
   if (isLoading) {
     return (
@@ -121,6 +141,7 @@ const STORAGE_KEY_FONT_SIZE = 'markdown_poster_fontsize';
 const STORAGE_KEY_WATERMARK_SHOW = 'markdown_poster_watermark_show';
 const STORAGE_KEY_WATERMARK_TEXT = 'markdown_poster_watermark_text';
 const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
+const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; // New key for images
 
 // Max History Steps
 const MAX_HISTORY_SIZE = 10;
@@ -170,6 +191,17 @@ export default function App() {
     return false;
   });
 
+  // 6. Image Pool (Virtual File System)
+  const [imagePool, setImagePool] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_IMAGE_POOL);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error("Failed to load image pool", e);
+      return {};
+    }
+  });
+
   // --- PERSISTENCE EFFECTS ---
   
   useEffect(() => {
@@ -195,6 +227,16 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_DARK_MODE, String(isDarkMode));
   }, [isDarkMode]);
+
+  // Persist Image Pool (Debounced or separate to avoid lag on huge images, but simple useEffect here)
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_IMAGE_POOL, JSON.stringify(imagePool));
+    } catch (e) {
+      console.warn("LocalStorage quota exceeded. Some images may not be saved locally.", e);
+      // We don't block the UI, just warn. Images will work for the session.
+    }
+  }, [imagePool]);
 
   // ---------------------------
 
@@ -382,6 +424,56 @@ export default function App() {
             textareaRef.current.setSelectionRange(newCursorPosStart, newCursorPosEnd);
         }
     });
+  };
+
+  // --- VIRTUAL FILE SYSTEM IMAGE HANDLER ---
+  const processImageFile = (file: File) => {
+    // Limit file size to avoid crashing LS (e.g. 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("为了保证性能，请上传 2MB 以下的图片");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Data = event.target?.result as string;
+      if (base64Data) {
+        // Generate a simple ID
+        const imgId = 'img_' + Math.random().toString(36).substr(2, 9);
+        
+        // 1. Store in Pool
+        setImagePool(prev => ({
+          ...prev,
+          [imgId]: base64Data
+        }));
+
+        // 2. Insert clean Markdown syntax without alt text
+        insertTextAtCursor(`![](local://${imgId})`);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processImageFile(file);
+    e.target.value = '';
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+                processImageFile(file);
+            }
+            return; // Only handle the first image found
+        }
+    }
   };
 
   const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
@@ -654,9 +746,17 @@ export default function App() {
                     <button onClick={() => insertMarkdownSyntax('[', '](https://example.com)', '链接文字')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="链接">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                     </button>
-                    <button onClick={() => insertMarkdownSyntax('![', '](https://s2.loli.net/2025/12/18/2DTqCZM548pwPGk.png)', '图片描述/可以没有')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="图片">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></circle><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                    </button>
+                    
+                    {/* NEW: Image Upload Trigger */}
+                    <label className={`p-1.5 rounded transition-colors flex-shrink-0 cursor-pointer ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="图片">
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                        className="hidden" 
+                      />
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    </label>
                 </div>
              </div>
 
@@ -756,6 +856,7 @@ export default function App() {
             value={markdown}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder="在此输入 Markdown..."
             spellCheck={false}
           />
@@ -847,8 +948,10 @@ export default function App() {
                   <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none`}>
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
+                      urlTransform={(value) => value}
                       components={{
-                        img: StableImage
+                        // Pass imagePool to StableImage
+                        img: (props) => <StableImage {...props} imagePool={imagePool} />
                       }}
                     >
                       {markdown}
