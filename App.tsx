@@ -694,7 +694,7 @@ export default function App() {
 
           <div className="absolute top-[3.5rem] right-8 z-10 pointer-events-none select-none">
              <span className="text-[10px] font-medium text-[#8c8880]/60 font-sans tracking-widest">
-               {dateStr} <span className="mx-1 opacity-50">|</span> {wordCount} 字
+               {wordCount} 字 <span className="mx-1 opacity-50">|</span> {dateStr}
              </span>
           </div>
 
