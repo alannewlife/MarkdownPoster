@@ -58,8 +58,6 @@ const getCorsFriendlyUrl = (url?: string) => {
 };
 
 // NEW: StableImage Component
-// Fetches the image once, converts to Blob, and locks it.
-// This ensures Preview and Export see exactly the same binary data.
 const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => {
   const [blobSrc, setBlobSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,7 +81,6 @@ const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageEl
       })
       .catch((err) => {
         console.error("Failed to load image blob", err);
-        // Fallback to proxy URL if blob fails, though it might suffer from the original issue
         if (isMounted) {
           setBlobSrc(proxyUrl);
           setIsLoading(false);
@@ -92,15 +89,13 @@ const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageEl
 
     return () => {
       isMounted = false;
-      // Cleanup blob URL to prevent memory leaks when image changes or unmounts
       if (blobSrc && blobSrc.startsWith('blob:')) {
         URL.revokeObjectURL(blobSrc);
       }
     };
-  }, [src]); // Only re-run if the source URL changes in the markdown
+  }, [src]); 
 
   if (isLoading) {
-    // Placeholder while loading the blob
     return (
       <div className="w-full h-48 bg-gray-100 animate-pulse rounded-lg flex items-center justify-center text-gray-300">
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -113,65 +108,99 @@ const StableImage = ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageEl
       src={blobSrc || ""} 
       alt={alt} 
       {...props} 
-      // UPDATED: Changed from 'max-w-full' to 'w-full' to force full width
       className="w-full h-auto rounded-lg shadow-sm mx-auto block object-cover"
     />
   );
 };
 
-// LocalStorage Key
-const STORAGE_KEY = 'markdown_poster_draft';
-// Max History Steps - Updated to 10
+// LocalStorage Keys
+const STORAGE_KEY_MARKDOWN = 'markdown_poster_draft';
+const STORAGE_KEY_THEME = 'markdown_poster_theme';
+const STORAGE_KEY_FONT_SIZE = 'markdown_poster_fontsize';
+const STORAGE_KEY_WATERMARK_SHOW = 'markdown_poster_watermark_show';
+const STORAGE_KEY_WATERMARK_TEXT = 'markdown_poster_watermark_text';
+
+// Max History Steps
 const MAX_HISTORY_SIZE = 10;
 
 export default function App() {
-  // Initialize state from LocalStorage if available, otherwise use default
+  // --- STATE INITIALIZATION WITH LOCALSTORAGE ---
+  
+  // 1. Markdown Content
   const [markdown, setMarkdown] = useState<string>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(STORAGE_KEY_MARKDOWN);
     return saved !== null ? saved : DEFAULT_MARKDOWN;
   });
 
-  const [theme, setTheme] = useState<BorderTheme>(BorderTheme.MacOS);
-  const [fontSize, setFontSize] = useState<FontSize>(FontSize.Medium);
-  const [isExporting, setIsExporting] = useState(false);
-  
-  // New: Export Version Counter to force DOM remount
-  const [exportVersion, setExportVersion] = useState(0);
-  
-  // Watermark State
-  const [showWatermark, setShowWatermark] = useState(true);
-  const [watermarkText, setWatermarkText] = useState("");
+  // 2. Theme
+  const [theme, setTheme] = useState<BorderTheme>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_THEME);
+    return (saved as BorderTheme) || BorderTheme.MacOS;
+  });
 
-  // Layout State for Resizable Splitter
+  // 3. Font Size
+  const [fontSize, setFontSize] = useState<FontSize>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
+    return (saved as FontSize) || FontSize.Medium;
+  });
+  
+  // 4. Watermark Settings
+  const [showWatermark, setShowWatermark] = useState<boolean>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_WATERMARK_SHOW);
+    return saved !== null ? saved === 'true' : true;
+  });
+  
+  const [watermarkText, setWatermarkText] = useState<string>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_WATERMARK_TEXT);
+    return saved !== null ? saved : "";
+  });
+
+  // --- PERSISTENCE EFFECTS ---
+  
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_MARKDOWN, markdown);
+  }, [markdown]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_THEME, theme);
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_FONT_SIZE, fontSize);
+  }, [fontSize]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_WATERMARK_SHOW, String(showWatermark));
+  }, [showWatermark]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_WATERMARK_TEXT, watermarkText);
+  }, [watermarkText]);
+
+  // ---------------------------
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportVersion, setExportVersion] = useState(0);
   const [leftWidth, setLeftWidth] = useState(50); 
   
   const exportRef = useRef<HTMLDivElement>(null);
-  
-  // Ref for Textarea to handle cursor insertion
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // --- HISTORY / UNDO SYSTEM ---
-  // Initialize history with the current loaded markdown to ensure consistency
   const [history, setHistory] = useState<string[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return [saved !== null ? saved : DEFAULT_MARKDOWN];
+    // Initialize history with current markdown (from localStorage or default)
+    return [markdown]; 
   });
   const [historyIndex, setHistoryIndex] = useState(0);
-  
-  // Fixed: Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout to avoid namespace issues
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Core function to add a new state to history with Limit
   const pushToHistory = useCallback((newText: string) => {
-    // Calculate new history based on current history and index
     const nextHistory = history.slice(0, historyIndex + 1);
     nextHistory.push(newText);
 
     if (nextHistory.length > MAX_HISTORY_SIZE) {
-      // If exceeding limit, remove the oldest items (keep the last MAX_HISTORY_SIZE)
       const slicedHistory = nextHistory.slice(nextHistory.length - MAX_HISTORY_SIZE);
       setHistory(slicedHistory);
-      // The index will now be at the end of this max-sized array
       setHistoryIndex(MAX_HISTORY_SIZE - 1);
     } else {
       setHistory(nextHistory);
@@ -179,7 +208,6 @@ export default function App() {
     }
   }, [history, historyIndex]);
 
-  // Handle Undo
   const handleUndo = useCallback(() => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
@@ -188,7 +216,6 @@ export default function App() {
     }
   }, [history, historyIndex]);
 
-  // Handle Redo
   const handleRedo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
@@ -197,8 +224,6 @@ export default function App() {
     }
   }, [history, historyIndex]);
 
-  // Wrapper for typing to debounce history updates
-  // We update visual state immediately, but only save to history after user stops typing for 500ms
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     setMarkdown(newText);
@@ -208,33 +233,23 @@ export default function App() {
     }
 
     typingTimeoutRef.current = setTimeout(() => {
-      // Check if text actually changed to avoid duplicates
       if (newText !== history[historyIndex]) {
         pushToHistory(newText);
       }
     }, 500);
   };
 
-  // Immediate update (for buttons like Bold, Clear, Insert)
   const updateMarkdownImmediate = (newText: string) => {
     setMarkdown(newText);
     pushToHistory(newText);
-    
-    // Focus textarea after button updates
     requestAnimationFrame(() => {
         textareaRef.current?.focus();
     });
   };
 
-  // NEW: Save to LocalStorage whenever markdown changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, markdown);
-  }, [markdown]);
-
-  // Handle Keyboard Shortcuts (Ctrl+Z, Ctrl+Shift+Z)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-      e.preventDefault(); // Stop browser native undo
+      e.preventDefault(); 
       if (e.shiftKey) {
         handleRedo();
       } else {
@@ -242,9 +257,7 @@ export default function App() {
       }
     }
   };
-  // -----------------------------
-
-  // Markdown Insertion Logic
+  
   const insertMarkdownSyntax = (prefix: string, suffix: string = '', placeholder: string = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -261,10 +274,7 @@ export default function App() {
     let newCursorPosStart = 0;
     let newCursorPosEnd = 0;
 
-    // Use placeholder if no text is selected
     const textToInsert = selectedText.length > 0 ? selectedText : placeholder;
-
-    // Smart handling: wrap selection or placeholder
     newText = beforeText + prefix + textToInsert + suffix + afterText;
     
     if (selectedText.length > 0) {
@@ -280,10 +290,8 @@ export default function App() {
         }
     }
 
-    // Use immediate update so this action is undoable
     updateMarkdownImmediate(newText);
 
-    // Restore cursor position
     requestAnimationFrame(() => {
         if (textareaRef.current) {
             textareaRef.current.setSelectionRange(newCursorPosStart, newCursorPosEnd);
@@ -415,25 +423,20 @@ export default function App() {
 
   const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
 
-  // 1. User clicks Export
   const handleExport = () => {
     setIsExporting(true);
-    // Increment version to force a complete re-mount of the preview component
     setExportVersion(v => v + 1);
   };
 
-  // 2. Effect triggers when exportVersion changes
   useEffect(() => {
-    if (exportVersion === 0) return; // Skip initial render
+    if (exportVersion === 0) return; 
 
     const performExport = async () => {
       if (!exportRef.current) return;
 
       try {
-        // Wait for the fresh DOM to be mounted and painted
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 800)));
 
-        // Pre-check images again on the FRESH DOM
         const images = Array.from(exportRef.current.querySelectorAll('img')) as HTMLImageElement[];
         await Promise.all(images.map(img => {
             if (img.complete) return Promise.resolve();
@@ -443,14 +446,11 @@ export default function App() {
             });
         }));
 
-        // Extra buffer after images load
         await new Promise(resolve => setTimeout(resolve, 200));
 
         const dataUrl = await toPng(exportRef.current, { 
           pixelRatio: 2,
           skipAutoScale: true,
-          // IMPORTANT: cacheBust is FALSE. We are using Blob URLs which are local and specific.
-          // Using cacheBust would try to fetch the Blob URL with a query param, which might fail or be weird.
           cacheBust: false, 
         });
         
@@ -475,7 +475,6 @@ export default function App() {
       const reader = new FileReader();
       reader.onload = (e) => {
         if (typeof e.target?.result === 'string') {
-          // Use immediate update to make it undoable
           updateMarkdownImmediate(e.target.result);
         }
       };
@@ -500,17 +499,15 @@ export default function App() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Editor Panel - Updated to Lined Paper Style */}
+        {/* Left: Editor Panel */}
         <div 
           style={{ width: `${leftWidth}%` }}
           className="flex flex-col border-r border-[#e0e0e0] bg-[#fdfcf5] z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
         >
-          {/* Merged Editor Function & Markdown Toolbar */}
           <div className="h-12 border-b border-[#e8e6df] flex items-center px-4 bg-[#f4f2eb] justify-between">
              
-             {/* Left Group: Label, Divider, Tools */}
+             {/* Left Group */}
              <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                {/* Editor Label */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                     <span className="text-[10px] font-bold text-[#8c8880] uppercase tracking-widest">Editor</span>
                     <a 
@@ -524,7 +521,6 @@ export default function App() {
                     </a>
                 </div>
 
-                {/* Vertical Divider */}
                 <div className="w-px h-4 bg-[#d1d0c9] flex-shrink-0"></div>
 
                 {/* Markdown Buttons */}
@@ -538,7 +534,6 @@ export default function App() {
                     <button onClick={() => insertMarkdownSyntax('- ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="列表">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
                     </button>
-                    {/* NEW: Numbered List */}
                     <button onClick={() => insertMarkdownSyntax('1. ')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="数字列表">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
                     </button>
@@ -554,16 +549,15 @@ export default function App() {
                     <button onClick={() => insertMarkdownSyntax('[', '](https://example.com)', '链接文字')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="链接">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                     </button>
-                    {/* UPDATED: Image insertion button with new URL and placeholder text */}
                     <button onClick={() => insertMarkdownSyntax('![', '](https://s2.loli.net/2025/12/18/2DTqCZM548pwPGk.png)', '图片描述/可以没有')} className="p-1.5 text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7] rounded transition-colors flex-shrink-0" title="图片">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></circle><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     </button>
                 </div>
              </div>
 
-             {/* Right Side: Actions (Undo/Redo & Clear & Import) */}
+             {/* Right Side: Actions */}
              <div className="flex items-center gap-3">
-                 {/* Undo/Redo Buttons - Updated: Removed border wrapper, added explicit gray styling for disabled state */}
+                 {/* Undo/Redo Buttons */}
                  <div className="flex items-center">
                    <button 
                      type="button"
@@ -588,7 +582,6 @@ export default function App() {
                    </button>
                  </div>
 
-                 {/* Clear Button - Instant Clear with Custom History Support */}
                  <button 
                     type="button"
                     onClick={() => {
@@ -601,7 +594,6 @@ export default function App() {
                     <span>清空</span>
                  </button>
 
-                 {/* Import Button */}
                  <label className="cursor-pointer flex items-center gap-1 text-[10px] font-bold text-[#8c8880] hover:text-[#8b7e74] transition-colors uppercase tracking-wide flex-shrink-0">
                     <input 
                     type="file" 
@@ -615,7 +607,6 @@ export default function App() {
              </div>
           </div>
 
-          {/* Textarea - Lined Paper Effect - Padding pt-9 (36px) and bg-position:0_0 (0px offset) ensures perfect centering between lines. */}
           <textarea
             ref={textareaRef}
             className="flex-1 w-full px-8 pb-8 pt-9 resize-none focus:outline-none text-[#2d2d2d] font-mono text-[15px] leading-[32px] bg-transparent bg-[image:linear-gradient(transparent_31px,#e8e8e8_31px)] bg-[length:100%_32px] bg-[position:0_0] bg-local placeholder-gray-400/50"
@@ -633,10 +624,8 @@ export default function App() {
           onMouseDown={startResizing}
           title="拖动调整宽度"
         >
-           {/* Visual Guide Line - shows area of effect */}
            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px h-full bg-transparent group-hover:bg-[#8b7e74]/50 transition-colors" />
            
-           {/* Grip Handle - Thinner, Rectangular, Long strip */}
            <div className="relative z-30 w-2 h-16 bg-white border border-gray-300 shadow-sm flex flex-col items-center justify-center gap-2 group-hover:border-[#8b7e74] group-hover:bg-[#8b7e74]/10 transition-all duration-200">
              <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-[#8b7e74]" />
              <div className="w-0.5 h-0.5 bg-gray-400 group-hover:bg-[#8b7e74]" />
@@ -649,20 +638,13 @@ export default function App() {
           
           <div className="w-full py-10 px-8 flex justify-center min-h-min">
             
-            {/* 
-                THE EXPORT FRAME 
-                Outer container captured by export. 
-                KEY PROP ADDED HERE: Forces complete remount when exportVersion changes
-            */}
             <div 
               ref={exportRef}
               key={`export-container-${exportVersion}`}
               className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
             >
               
-              {/* The Inner Card */}
               <div className={`w-full ${currentStyle.card}`}>
-                {/* Conditional Header Rendering */}
                 {theme === BorderTheme.MacOS && (
                   <div className={currentStyle.header}>
                     <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
@@ -695,12 +677,10 @@ export default function App() {
                    </div>
                 )}
                 
-                {/* Content Body */}
                 <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none`}>
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      // USE StableImage for all images to ensure WYSIWYG
                       img: StableImage
                     }}
                   >
@@ -709,7 +689,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Footer Watermark (Now outside the card, inside the frame) */}
               {showWatermark && (
                 <div className={`mt-6 text-right opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor}`}>
                   {watermarkText || "人人智学社 rrzxs.com"}
