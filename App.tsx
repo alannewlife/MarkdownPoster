@@ -10,18 +10,17 @@ const DEFAULT_MARKDOWN = `# Markdown 海报生成器
 
 ![](https://picsum.photos/600/300)
 
-Markdown Poster 是一个工具，让你用 Markdown 制作~~极其~~优雅的图文海报。 ✨
+Markdown Poster 是一个工具，让你用 Markdown 制作优雅的图文海报。 ✨
 
 ## 它的主要功能：
 
-1. 将 *Markdown* 转化为 **图文海报**
+1. 将 Markdown 转化为 **图文海报**
 2. 可以 **自定义**
-   - [x] 文本主题背景
-   - [x] 字体大小
-   - [x] 画布宽度
-   - [x] 署名
-3. 所见即所得，可**下载为PNG 图片**或者复制图片到**剪贴板**。
-4. 最大亮点，可以直接**黏贴图片**，或者**选择本地图片**插入编辑器
+   - 文本主题背景
+   - 字体大小
+   - 画布宽度
+   - 署名
+3. 所见即所得，可**下载为 PNG 图片**。
 
 ## 适用场景：
 
@@ -192,11 +191,45 @@ export default function App() {
     return false;
   });
 
-  // 6. Image Pool (Virtual File System)
+  // 6. Image Pool (Virtual File System) with Startup Garbage Collection (GC)
   const [imagePool, setImagePool] = useState<Record<string, string>>(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY_IMAGE_POOL);
-      return saved ? JSON.parse(saved) : {};
+      const savedPoolStr = localStorage.getItem(STORAGE_KEY_IMAGE_POOL);
+      // We read directly from LS here to ensure we cross-reference the *persisted* markdown content
+      const savedMarkdown = localStorage.getItem(STORAGE_KEY_MARKDOWN); 
+      const contentToCheck = savedMarkdown !== null ? savedMarkdown : DEFAULT_MARKDOWN;
+
+      let pool = savedPoolStr ? JSON.parse(savedPoolStr) : {};
+
+      // --- STARTUP GC LOGIC ---
+      // 1. Identify all image IDs currently used in the Markdown
+      const usedIds = new Set<string>();
+      // Regex to find strings like: local://img_123456789
+      const regex = /local:\/\/(img_[a-z0-9]+)/gi;
+      let match;
+      while ((match = regex.exec(contentToCheck)) !== null) {
+        usedIds.add(match[1]); // match[1] is the ID
+      }
+
+      // 2. Filter the pool, keeping only used images
+      const cleanedPool: Record<string, string> = {};
+      let cleanedCount = 0;
+
+      Object.keys(pool).forEach(key => {
+        if (usedIds.has(key)) {
+          cleanedPool[key] = pool[key];
+        } else {
+          cleanedCount++; // Image 'key' is not in markdown, so we drop it (GC)
+        }
+      });
+
+      if (cleanedCount > 0) {
+        console.log(`[Startup GC] Cleaned up ${cleanedCount} unused images from storage.`);
+      }
+      
+      return cleanedPool;
+      // --- END GC LOGIC ---
+
     } catch (e) {
       console.error("Failed to load image pool", e);
       return {};
