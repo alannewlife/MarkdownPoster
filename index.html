@@ -32,11 +32,24 @@
         plugins: [],
       }
     </script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans+Text">
+    
+    <!-- 
+      关键修改：
+      1. 加回 Google Fonts 链接。
+      2. 必须添加 crossorigin="anonymous" 属性！这解决了 html-to-image 导出时的跨域报错。
+    -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans+Text" crossorigin="anonymous">
+
     <style>
       html {
         font-size: 14px; /* 关键：让所有 Tailwind rem 尺寸按 A 的比例缩小 */
-        font-family: "Google Sans Text", "Google Sans", ui-sans-serif, system-ui, sans-serif;
+        
+        /* 
+           字体栈逻辑：
+           1. 优先尝试 "Google Sans Text"。
+           2. 如果国内访问不通（加载失败），浏览器会自动使用后面的 ui-sans-serif 等系统字体。
+        */
+        font-family: "Google Sans Text", "Google Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
       }
     
       /* Custom scrollbar for better aesthetics */
