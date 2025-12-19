@@ -731,6 +731,18 @@ export default function App() {
     setExportVersion(v => v + 1);
   };
 
+  const handleDownloadMarkdown = () => {
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `markdown-${Date.now()}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     if (exportVersion === 0 || !exportAction) return; 
 
@@ -893,7 +905,7 @@ export default function App() {
              {/* Right Side: Actions */}
              <div className="flex items-center gap-3">
                  {/* Undo/Redo Buttons */}
-                 <div className="flex items-center">
+                 <div className="flex items-center gap-1">
                    <button 
                      type="button"
                      onClick={handleUndo}
@@ -908,7 +920,7 @@ export default function App() {
                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
                    </button>
                    
-                   <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
+                   {/* REMOVED DIVIDER BETWEEN UNDO/REDO */}
 
                    <button 
                      type="button"
@@ -924,6 +936,20 @@ export default function App() {
                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
                    </button>
                  </div>
+
+                 {/* Export Button Moved Here */}
+                 <button 
+                    type="button"
+                    onClick={handleDownloadMarkdown} 
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}
+                    title="导出 Markdown"
+                >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    <span>导出</span>
+                 </button>
+
+                 {/* New Divider */}
+                 <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
 
                  {/* Selection/Clipboard Buttons */}
                  <div className="flex items-center gap-2">
@@ -957,16 +983,20 @@ export default function App() {
                     <span>清空</span>
                  </button>
 
-                 <label className={`cursor-pointer flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}>
-                    <input 
-                    type="file" 
-                    accept=".md,.txt" 
-                    onChange={handleFileImport} 
-                    className="hidden" 
-                    />
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                    <span>导入</span>
-                 </label>
+                 <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
+
+                 <div className="flex items-center gap-3">
+                    <label className={`cursor-pointer flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}>
+                        <input 
+                        type="file" 
+                        accept=".md,.txt" 
+                        onChange={handleFileImport} 
+                        className="hidden" 
+                        />
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                        <span>导入</span>
+                    </label>
+                 </div>
              </div>
           </div>
 
