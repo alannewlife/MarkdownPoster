@@ -32,7 +32,13 @@
         plugins: [],
       }
     </script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans+Text">
     <style>
+      html {
+        font-size: 14px; /* 关键：让所有 Tailwind rem 尺寸按 A 的比例缩小 */
+        font-family: "Google Sans Text", "Google Sans", ui-sans-serif, system-ui, sans-serif;
+      }
+    
       /* Custom scrollbar for better aesthetics */
       ::-webkit-scrollbar {
         width: 8px;

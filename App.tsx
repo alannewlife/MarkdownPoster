@@ -920,8 +920,6 @@ export default function App() {
                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
                    </button>
                    
-                   {/* REMOVED DIVIDER BETWEEN UNDO/REDO */}
-
                    <button 
                      type="button"
                      onClick={handleRedo}
@@ -937,18 +935,6 @@ export default function App() {
                    </button>
                  </div>
 
-                 {/* Export Button Moved Here */}
-                 <button 
-                    type="button"
-                    onClick={handleDownloadMarkdown} 
-                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}
-                    title="导出 Markdown"
-                >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                    <span>导出</span>
-                 </button>
-
-                 {/* New Divider */}
                  <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
 
                  {/* Selection/Clipboard Buttons */}
@@ -997,6 +983,21 @@ export default function App() {
                         <span>导入</span>
                     </label>
                  </div>
+
+                 <button 
+                    type="button"
+                    onClick={handleDownloadMarkdown} 
+                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}
+                    title="保存 Markdown 文件"
+                >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 21v-8H7v8" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3v5h8" />
+                    </svg>
+                    <span>保存</span>
+                 </button>
+
              </div>
           </div>
 
