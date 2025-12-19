@@ -24,6 +24,28 @@
                       color: theme('colors.blue.700'),
                     },
                   },
+                  // Custom Inline Code Styling
+                  code: {
+                    backgroundColor: 'rgba(135, 131, 120, 0.15)', // Subtle gray background compatible with dark/light mode
+                    borderRadius: theme('borderRadius.md'),
+                    paddingTop: theme('spacing.0.5'),
+                    paddingBottom: theme('spacing.0.5'),
+                    paddingLeft: theme('spacing.1.5'),
+                    paddingRight: theme('spacing.1.5'),
+                    fontWeight: '600',
+                  },
+                  'code::before': {
+                    content: '""', // Remove default backticks
+                  },
+                  'code::after': {
+                    content: '""', // Remove default backticks
+                  },
+                  // Reset for code blocks (pre code) to avoid double styling
+                  'pre code': {
+                    backgroundColor: 'transparent',
+                    padding: '0',
+                    fontWeight: 'inherit',
+                  },
                 },
               },
             }),

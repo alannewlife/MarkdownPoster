@@ -10,7 +10,7 @@ const DEFAULT_MARKDOWN = `# Markdown 海报生成器
 
 ![](https://picsum.photos/600/300)
 
-Markdown Poster 是一个工具，让你用 Markdown 制作优雅的图文海报。 ✨
+\`Markdown Poster\` 是一个工具，让你用 Markdown 制作优雅的图文海报。 ✨
 
 ## 它的主要功能：
 
