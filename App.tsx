@@ -14,13 +14,14 @@ Markdown Poster 是一个工具，让你用 Markdown 制作优雅的图文海报
 
 ## 它的主要功能：
 
-1. 将 Markdown 转化为 **图文海报**
+1. 将 *Markdown* 转化为 **图文海报**
 2. 可以 **自定义**
-   - 文本主题背景
-   - 字体大小
-   - 画布宽度
-   - 署名
-3. 所见即所得，可**下载为 PNG 图片**。
+   - [x] 文本主题背景
+   - [x] 字体大小
+   - [x] 画布宽度
+   - [x] 署名
+3. 所见即所得，可**下载为PNG 图片**或者复制图片到**剪贴板**。
+4. 最大亮点，可以直接**黏贴图片**，或者**选择本地图片**插入编辑器
 
 ## 适用场景：
 
@@ -56,6 +57,47 @@ const getCorsFriendlyUrl = (url?: string) => {
   } catch {
     return url;
   }
+};
+
+// NEW: Helper function for Image Garbage Collection
+const cleanImagePool = (pool: Record<string, string>, markdownContent: string, sourceLabel: string) => {
+    // 1. Identify all image IDs currently used in the Markdown
+    const usedIds = new Set<string>();
+    // Regex to find strings like: local://img_123456789
+    const regex = /local:\/\/(img_[a-z0-9]+)/gi;
+    let match;
+    // We strictly use markdownContent here to ensure we only keep what's in the text
+    while ((match = regex.exec(markdownContent)) !== null) {
+      usedIds.add(match[1]); // match[1] is the ID
+    }
+
+    // 2. Filter the pool
+    const cleanedPool: Record<string, string> = {};
+    let removedCount = 0;
+    const totalBefore = Object.keys(pool).length;
+
+    Object.keys(pool).forEach(key => {
+      if (usedIds.has(key)) {
+        cleanedPool[key] = pool[key];
+      } else {
+        removedCount++;
+      }
+    });
+    
+    const remaining = Object.keys(cleanedPool).length;
+
+    // 3. Log Statistics
+    console.group(`🧹 Image GC [${sourceLabel}]`);
+    console.log(`%cTotal Images: ${totalBefore}`, 'color: gray');
+    console.log(`%cUsed Images:  ${remaining}`, 'color: green; font-weight: bold');
+    if (removedCount > 0) {
+        console.log(`%cCleaned Up:   ${removedCount} (Trash Removed)`, 'color: orange; font-weight: bold');
+    } else {
+        console.log(`%cCleaned Up:   0`, 'color: gray');
+    }
+    console.groupEnd();
+
+    return { cleanedPool, removedCount };
 };
 
 // NEW: StableImage Component with VFS support
@@ -201,35 +243,10 @@ export default function App() {
 
       let pool = savedPoolStr ? JSON.parse(savedPoolStr) : {};
 
-      // --- STARTUP GC LOGIC ---
-      // 1. Identify all image IDs currently used in the Markdown
-      const usedIds = new Set<string>();
-      // Regex to find strings like: local://img_123456789
-      const regex = /local:\/\/(img_[a-z0-9]+)/gi;
-      let match;
-      while ((match = regex.exec(contentToCheck)) !== null) {
-        usedIds.add(match[1]); // match[1] is the ID
-      }
-
-      // 2. Filter the pool, keeping only used images
-      const cleanedPool: Record<string, string> = {};
-      let cleanedCount = 0;
-
-      Object.keys(pool).forEach(key => {
-        if (usedIds.has(key)) {
-          cleanedPool[key] = pool[key];
-        } else {
-          cleanedCount++; // Image 'key' is not in markdown, so we drop it (GC)
-        }
-      });
-
-      if (cleanedCount > 0) {
-        console.log(`[Startup GC] Cleaned up ${cleanedCount} unused images from storage.`);
-      }
+      // --- STARTUP GC LOGIC (Refactored) ---
+      const { cleanedPool } = cleanImagePool(pool, contentToCheck, 'Startup');
       
       return cleanedPool;
-      // --- END GC LOGIC ---
-
     } catch (e) {
       console.error("Failed to load image pool", e);
       return {};
@@ -702,6 +719,13 @@ export default function App() {
   const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
 
   const handleExport = (type: 'download' | 'copy') => {
+    // Run Garbage Collection before Export
+    const { cleanedPool, removedCount } = cleanImagePool(imagePool, markdown, 'Pre-Export');
+    
+    if (removedCount > 0) {
+        setImagePool(cleanedPool);
+    }
+
     setIsExporting(true);
     setExportAction(type);
     setExportVersion(v => v + 1);
