@@ -1,11 +1,13 @@
 
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { toPng, toBlob } from 'html-to-image';
 import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
-import { BorderTheme, BorderStyleConfig, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign } from './types';
+import { PosterPreview } from './components/PosterPreview';
+import { WritingPreview } from './components/WritingPreview';
+import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign } from './types';
+import { cleanImagePool, compressImage, dataURItoBlob, getExtensionFromMime, getCorsFriendlyUrl } from './utils/imageUtils';
+
 // @ts-ignore
 import JSZip from 'jszip';
 // @ts-ignore
@@ -50,204 +52,6 @@ function createArt() {
 [访问我们的网站 rrzxs.com](https://rrzxs.com)
 `;
 
-// Helper to handle CORS for initial fetch
-const getCorsFriendlyUrl = (url?: string) => {
-  if (!url) return '';
-  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('local://')) return url;
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.origin === window.location.origin) return url;
-    // Use wsrv.nl as a high-performance, CORS-enabled image proxy
-    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
-  } catch {
-    return url;
-  }
-};
-
-// Convert Data URI to Blob
-const dataURItoBlob = (dataURI: string) => {
-  const byteString = atob(dataURI.split(',')[1]);
-  const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i);
-  }
-  return new Blob([ab], { type: mimeString });
-};
-
-// Get Extension from Mime
-const getExtensionFromMime = (mime: string) => {
-  switch(mime) {
-    case 'image/jpeg': return 'jpg';
-    case 'image/png': return 'png';
-    case 'image/webp': return 'webp';
-    case 'image/gif': return 'gif';
-    case 'image/svg+xml': return 'svg';
-    default: return 'png';
-  }
-};
-
-// NEW: Helper function for Image Garbage Collection
-const cleanImagePool = (pool: Record<string, string>, markdownContent: string, sourceLabel: string) => {
-    // 1. Identify all image IDs currently used in the Markdown
-    const usedIds = new Set<string>();
-    // Regex to find strings like: local://img_123456789
-    const regex = /local:\/\/(img_[a-z0-9]+)/gi;
-    let match;
-    // We strictly use markdownContent here to ensure we only keep what's in the text
-    while ((match = regex.exec(markdownContent)) !== null) {
-      usedIds.add(match[1]); // match[1] is the ID
-    }
-
-    // 2. Filter the pool
-    const cleanedPool: Record<string, string> = {};
-    let removedCount = 0;
-    const totalBefore = Object.keys(pool).length;
-
-    Object.keys(pool).forEach(key => {
-      if (usedIds.has(key)) {
-        cleanedPool[key] = pool[key];
-      } else {
-        removedCount++;
-      }
-    });
-    
-    const remaining = Object.keys(cleanedPool).length;
-
-    // 3. Log Statistics
-    console.group(`🧹 Image GC [${sourceLabel}]`);
-    console.log(`%cTotal Images: ${totalBefore}`, 'color: gray');
-    console.log(`%cUsed Images:  ${remaining}`, 'color: green; font-weight: bold');
-    if (removedCount > 0) {
-        console.log(`%cCleaned Up:   ${removedCount} (Trash Removed)`, 'color: orange; font-weight: bold');
-    } else {
-        console.log(`%cCleaned Up:   0`, 'color: gray');
-    }
-    console.groupEnd();
-
-    return { cleanedPool, removedCount };
-};
-
-// NEW: Image Compression Helper (Updated to use WebP for transparency support)
-const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-        
-        // Resize logic: maintain aspect ratio
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            reject(new Error("Canvas context error"));
-            return;
-        }
-        
-        // UPDATED: Clear canvas instead of filling white to preserve transparency
-        ctx.clearRect(0, 0, width, height);
-        
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Export as WebP: Supports transparency AND high compression
-        // Fallback to image/jpeg if browser doesn't support webp (rare nowadays)
-        const dataUrl = canvas.toDataURL('image/webp', quality);
-        resolve(dataUrl);
-      };
-      img.onerror = (error) => reject(error);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-};
-
-// NEW: StableImage Component with VFS support
-// We use 'any' for props to handle react-markdown specific props like 'node' comfortably
-const StableImage = ({ src, alt, imagePool, node, ...props }: any) => {
-  const [blobSrc, setBlobSrc] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!src) return;
-
-    let isMounted = true;
-    setIsLoading(true);
-
-    // 1. Handle Virtual File System (local://)
-    if (src.startsWith('local://')) {
-      const imgId = src.replace('local://', '');
-      const localData = imagePool?.[imgId];
-      
-      if (localData) {
-        if (isMounted) {
-            setBlobSrc(localData);
-            setIsLoading(false);
-        }
-      } else {
-        // Fallback or error state for missing local image
-        console.warn(`Image ID ${imgId} not found in pool.`);
-        if (isMounted) setIsLoading(false);
-      }
-      return; 
-    }
-
-    // 2. Handle External Images via Proxy
-    const proxyUrl = getCorsFriendlyUrl(src);
-
-    fetch(proxyUrl)
-      .then(response => response.blob())
-      .then(blob => {
-        if (isMounted) {
-          const objectUrl = URL.createObjectURL(blob);
-          setBlobSrc(objectUrl);
-          setIsLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load image blob", err);
-        if (isMounted) {
-          setBlobSrc(proxyUrl);
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-      if (blobSrc && blobSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(blobSrc);
-      }
-    };
-  }, [src, imagePool]); 
-
-  if (isLoading) {
-    return (
-      <div className="w-full h-48 bg-gray-100 animate-pulse rounded-lg flex items-center justify-center text-gray-300">
-        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-      </div>
-    );
-  }
-
-  return (
-    <img 
-      src={blobSrc || ""} 
-      alt={alt} 
-      {...props} 
-      className="w-full h-auto rounded-lg shadow-sm mx-auto block object-cover"
-    />
-  );
-};
-
 // LocalStorage Keys
 const STORAGE_KEY_MARKDOWN = 'markdown_poster_draft';
 const STORAGE_KEY_THEME = 'markdown_poster_theme';
@@ -263,11 +67,6 @@ const STORAGE_KEY_VIEW_MODE = 'markdown_poster_view_mode';
 
 // Max History Steps
 const MAX_HISTORY_SIZE = 10;
-
-// Helper to determine if a theme is dark-based (for Writing Mode contrast)
-const isThemeDark = (theme: BorderTheme) => {
-  return [BorderTheme.Neon, BorderTheme.Ocean, BorderTheme.Poster].includes(theme);
-};
 
 export default function App() {
   // --- STATE INITIALIZATION WITH LOCALSTORAGE ---
@@ -415,6 +214,7 @@ export default function App() {
   const [exportAction, setExportAction] = useState<'download' | 'copy' | null>(null);
   const [leftWidth, setLeftWidth] = useState(50); 
   
+  // Passed to PosterPreview via ref to capture the DOM
   const exportRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -715,130 +515,6 @@ export default function App() {
     document.body.style.userSelect = 'none'; 
   }, []);
 
-  const getThemeStyles = (themeName: BorderTheme): BorderStyleConfig => {
-    switch (themeName) {
-      case BorderTheme.Poster:
-        return {
-          frame: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600", 
-          card: "bg-transparent", 
-          content: "bg-white/95 backdrop-blur-sm shadow-2xl rounded-xl min-h-[600px]",
-          prose: "prose-slate",
-          header: "hidden",
-          watermarkColor: "text-white/80"
-        };
-      case BorderTheme.Sunset:
-        return {
-          frame: "bg-[#fff7ed]",
-          card: "bg-gradient-to-br from-orange-50 to-rose-50 border-4 border-orange-200 shadow-[0_20px_50px_-12px_rgba(251,146,60,0.5)] rounded-2xl overflow-hidden ring-4 ring-orange-100/50",
-          content: "bg-transparent text-gray-800",
-          prose: "prose-orange prose-headings:text-orange-900",
-          header: "bg-orange-100/50 border-b border-orange-200/50 h-10 flex items-center px-4 space-x-2",
-          watermarkColor: "text-orange-300"
-        };
-      case BorderTheme.Ocean:
-        return {
-          frame: "bg-[#0f172a]",
-          card: "bg-cyan-950 border border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.2)] rounded-xl overflow-hidden relative",
-          content: "bg-gradient-to-b from-cyan-900/50 to-blue-950/50 text-cyan-50",
-          prose: "prose-invert prose-headings:text-cyan-200 prose-a:text-cyan-400 [&_td]:text-cyan-50 [&_th]:text-cyan-200",
-          header: "bg-cyan-900/40 border-b border-cyan-800 h-8 flex items-center justify-end px-4 space-x-2",
-          watermarkColor: "text-cyan-800"
-        };
-      case BorderTheme.Candy:
-        return {
-          frame: "bg-[#fdf2f8]",
-          card: "bg-white border-4 border-pink-400 shadow-[8px_8px_0px_0px_rgba(244,114,182,1)] rounded-3xl overflow-hidden",
-          content: "bg-yellow-50/50 text-gray-800 font-comic",
-          prose: "prose-pink prose-headings:text-pink-600 prose-strong:text-purple-600",
-          header: "bg-pink-100 border-b-4 border-pink-400 h-10 flex items-center px-4 space-x-3",
-          watermarkColor: "text-pink-300"
-        };
-      case BorderTheme.Neon:
-        return {
-          frame: "bg-[#171717]",
-          card: "bg-gray-900 border-2 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] rounded-xl overflow-hidden",
-          content: "bg-gray-900 text-pink-50",
-          prose: "prose-invert prose-p:text-pink-100 prose-headings:text-pink-400 prose-strong:text-cyan-300 prose-code:text-yellow-300 [&_td]:text-pink-50 [&_th]:text-pink-400",
-          watermarkColor: "text-pink-900"
-        };
-      case BorderTheme.Sketch:
-        return {
-          frame: "bg-[#f5f5f4]",
-          card: "bg-white sketch-border p-2",
-          content: "bg-transparent text-gray-900 font-comic", 
-          prose: "prose-slate prose-headings:font-comic",
-          watermarkColor: "text-stone-400"
-        };
-      case BorderTheme.Retro:
-        return {
-          frame: "bg-[#e5dfce]",
-          card: "bg-[#fdf6e3] border-4 border-double border-[#b58900] rounded-sm shadow-xl",
-          content: "bg-[#fdf6e3] text-[#657b83]",
-          prose: "prose-headings:text-[#b58900] prose-a:text-[#268bd2] font-serif",
-          watermarkColor: "text-[#b58900] opacity-40"
-        };
-      case BorderTheme.Glass:
-        return {
-          frame: "bg-gradient-to-br from-indigo-100 to-purple-100",
-          card: "bg-white/40 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl ring-1 ring-black/5",
-          content: "bg-transparent text-gray-900",
-          prose: "prose-gray prose-headings:text-gray-900 font-sans",
-          watermarkColor: "text-indigo-300"
-        };
-      case BorderTheme.Minimal:
-        return {
-          frame: "bg-[#f9fafb]",
-          card: "bg-white border border-gray-200 shadow-sm",
-          content: "bg-white text-gray-900",
-          prose: "prose-stone",
-          watermarkColor: "text-gray-300"
-        };
-      case BorderTheme.MacOS:
-      default:
-        return {
-          frame: "bg-[#f3f4f6]",
-          card: "bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden",
-          header: "bg-gray-100 border-b border-gray-200 h-8 flex items-center px-4 space-x-2",
-          content: "bg-white text-gray-800",
-          prose: "prose-slate",
-          watermarkColor: "text-gray-400"
-        };
-    }
-  };
-
-  const getFontSizeClass = (size: FontSize) => {
-    switch (size) {
-      case FontSize.Small: return 'prose-sm';
-      case FontSize.Large: return 'prose-xl';
-      case FontSize.Medium: default: return 'prose-base';
-    }
-  };
-
-  // Maps LayoutTheme to typography classes
-  const getLayoutClass = (layout: LayoutTheme) => {
-    switch (layout) {
-      case LayoutTheme.Classic:
-        return 'font-serif tracking-tight prose-headings:font-serif';
-      case LayoutTheme.Vibrant:
-        // UPDATED: Added yellow background to em (italic) tags for Vibrant theme
-        return 'font-mono tracking-wide prose-headings:font-mono prose-headings:font-black [&_em]:bg-yellow-200 dark:[&_em]:bg-yellow-600 [&_em]:text-black dark:[&_em]:text-white [&_em]:px-1 [&_em]:rounded-sm [&_em]:not-italic';
-      case LayoutTheme.Base:
-      default:
-        return 'font-sans tracking-normal prose-headings:font-sans';
-    }
-  };
-
-  // Dynamic padding style object
-  const getFramePaddingClass = (val: PaddingSize) => {
-    switch (val) {
-        case PaddingSize.Narrow: return 'p-4 sm:p-6';
-        case PaddingSize.Wide: return 'p-8 sm:p-16';
-        case PaddingSize.Medium: default: return 'p-6 sm:p-10';
-    }
-  };
-
-  const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
-
   const handleExport = (type: 'download' | 'copy') => {
     const { cleanedPool, removedCount } = cleanImagePool(imagePool, markdown, 'Pre-Export');
     
@@ -1103,7 +779,6 @@ export default function App() {
           <PreviewControlBar 
             currentTheme={theme} 
             setTheme={setTheme} 
-            // New props
             layoutTheme={layoutTheme}
             setLayoutTheme={setLayoutTheme}
             padding={padding}
@@ -1134,99 +809,29 @@ export default function App() {
           <div className="relative flex-1 min-h-0 overflow-hidden">
              
              {/* --- POSTER MODE RENDER --- */}
-             <div className={`absolute inset-0 overflow-y-auto flex flex-col items-center [background-size:20px_20px] ${
-                viewMode === ViewMode.Poster ? 'z-10 visible' : 'z-0 invisible'
-             } ${
-                isDarkMode 
-                  ? 'bg-[radial-gradient(#333842_1px,transparent_1px)]' 
-                  : 'bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]'
-            }`}>
-               <div className={`w-full flex flex-col items-center min-h-min pt-10 pb-24 px-8 origin-center transition-all duration-300 ease-out delay-75 ${
-                  viewMode === ViewMode.Poster ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-               }`}>
-                  <div 
-                    ref={exportRef}
-                    key={`export-container-${exportVersion}`}
-                    // Updated: Use dynamic padding based on frame settings
-                    className={`w-full md:w-[75%] max-w-none flex flex-col ${getFramePaddingClass(padding)} ${currentStyle.frame}`}
-                  >
-                    
-                    <div className={`w-full ${currentStyle.card}`}>
-                      {theme === BorderTheme.MacOS && (
-                        <div className={currentStyle.header}>
-                          <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
-                          <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
-                          <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
-                        </div>
-                      )}
-    
-                      {theme === BorderTheme.Sunset && (
-                        <div className={currentStyle.header}>
-                            <div className="flex space-x-1">
-                              <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                              <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                            </div>
-                        </div>
-                      )}
-    
-                      {theme === BorderTheme.Candy && (
-                        <div className={currentStyle.header}>
-                            <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
-                            <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
-                            <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
-                        </div>
-                      )}
-    
-                      {theme === BorderTheme.Ocean && (
-                        <div className={currentStyle.header}></div>
-                      )}
-                      
-                      {/* Content Container with fixed padding now, since outer frame handles variable width */}
-                      <div 
-                          className={`p-10 prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} ${getLayoutClass(layoutTheme)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none [&>:last-child]:mb-0`}
-                      >
-                        <ReactMarkdown 
-                          remarkPlugins={[remarkGfm]}
-                          urlTransform={(value) => value}
-                          components={{
-                            img: (props) => <StableImage {...props} imagePool={imagePool} />
-                          }}
-                        >
-                          {markdown}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-    
-                    {showWatermark && (
-                      <div className={`mt-6 opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor} ${watermarkAlign}`}>
-                        {watermarkText || "人人智学社 rrzxs.com"}
-                      </div>
-                    )}
-    
-                  </div>
-              </div>
-            </div>
+             <PosterPreview 
+               ref={exportRef}
+               visible={viewMode === ViewMode.Poster}
+               markdown={markdown}
+               theme={theme}
+               layoutTheme={layoutTheme}
+               fontSize={fontSize}
+               padding={padding}
+               showWatermark={showWatermark}
+               watermarkText={watermarkText}
+               watermarkAlign={watermarkAlign}
+               imagePool={imagePool}
+               isDarkMode={isDarkMode}
+             />
 
             {/* --- WRITING MODE RENDER --- */}
-            <div className={`absolute inset-0 overflow-y-auto overflow-x-hidden ${
-                viewMode === ViewMode.Writing ? 'z-10 visible' : 'z-0 invisible'
-            } ${currentStyle.frame} px-8 md:px-16`}>
-               <div className={`w-full max-w-4xl mx-auto py-16 min-h-full origin-center transition-all duration-300 ease-out delay-75 ${
-                   viewMode === ViewMode.Writing ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-               }`}>
-                  <div className={`prose max-w-none ${isThemeDark(theme) ? 'prose-invert prose-p:text-[#abb2bf] prose-headings:text-[#d4cfbf]' : 'prose-slate prose-lg'} ${getFontSizeClass(fontSize)}`}>
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
-                        urlTransform={(value) => value}
-                        components={{
-                          img: (props) => <StableImage {...props} imagePool={imagePool} />
-                        }}
-                      >
-                        {markdown}
-                      </ReactMarkdown>
-                  </div>
-               </div>
-            </div>
+            <WritingPreview 
+               visible={viewMode === ViewMode.Writing}
+               markdown={markdown}
+               fontSize={fontSize}
+               imagePool={imagePool}
+               isDarkMode={isDarkMode}
+            />
           </div>
 
         </div>
