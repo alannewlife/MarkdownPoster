@@ -1,11 +1,17 @@
 import React from 'react';
-import { BorderTheme, FontSize } from '../types';
+import { BorderTheme, FontSize, ViewMode } from '../types';
 
 interface PreviewControlBarProps {
   currentTheme: BorderTheme;
   setTheme: (theme: BorderTheme) => void;
   onExport: () => void;
-  onCopyImage: () => void; // New prop
+  onCopyImage: () => void;
+  
+  // NEW: Props for saving source (used in Writing Mode)
+  onSaveMarkdown: () => void;
+  onExportZip: () => void;
+  isExportingZip: boolean;
+
   isExporting: boolean;
   showWatermark: boolean;
   setShowWatermark: (show: boolean) => void;
@@ -13,7 +19,10 @@ interface PreviewControlBarProps {
   setWatermarkText: (text: string) => void;
   fontSize: FontSize;
   setFontSize: (size: FontSize) => void;
-  isDarkMode?: boolean; // Changed from isZenMode
+  isDarkMode?: boolean;
+  
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
 }
 
 const themes = Object.values(BorderTheme);
@@ -37,6 +46,9 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   setTheme, 
   onExport,
   onCopyImage,
+  onSaveMarkdown,
+  onExportZip,
+  isExportingZip,
   isExporting,
   showWatermark,
   setShowWatermark,
@@ -44,7 +56,9 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   setWatermarkText,
   fontSize,
   setFontSize,
-  isDarkMode = false
+  isDarkMode = false,
+  viewMode,
+  setViewMode
 }) => {
   return (
     <div className={`h-12 border-b flex items-center justify-between px-4 sm:px-6 gap-4 relative z-20 shrink-0 transition-colors duration-500 
@@ -53,48 +67,79 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
         : 'border-gray-200 bg-gray-50/90 backdrop-blur-sm text-gray-700'
       }`}>
       
+      {/* Mode Switcher (Far Left or merged with controls) */}
+      <div className="flex-shrink-0 flex items-center mr-2">
+         <div className={`flex p-0.5 rounded-lg border ${isDarkMode ? 'bg-[#282c34] border-[#3e4451]' : 'bg-gray-200/50 border-gray-200'}`}>
+            <button
+               onClick={() => setViewMode(ViewMode.Poster)}
+               className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${
+                  viewMode === ViewMode.Poster
+                   ? (isDarkMode ? 'bg-[#3e4451] text-[#d4cfbf] shadow-sm' : 'bg-white text-gray-800 shadow-sm')
+                   : (isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-gray-400 hover:text-gray-600')
+               }`}
+            >
+               海报
+            </button>
+            <button
+               onClick={() => setViewMode(ViewMode.Writing)}
+               className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all ${
+                  viewMode === ViewMode.Writing
+                   ? (isDarkMode ? 'bg-[#3e4451] text-[#d4cfbf] shadow-sm' : 'bg-white text-gray-800 shadow-sm')
+                   : (isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-gray-400 hover:text-gray-600')
+               }`}
+            >
+               阅读
+            </button>
+         </div>
+      </div>
+
       {/* Dynamic Centered Controls Container */}
       <div className="flex-1 flex items-center justify-center overflow-hidden min-w-0">
         <div className="flex items-center gap-4 sm:gap-6 overflow-x-auto no-scrollbar max-w-full px-2">
           
-          {/* Watermark Controls */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-              <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:inline transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-gray-400'}`}>署名</span>
-              
-              {/* Toggle Switch */}
-              <button 
-                onClick={() => setShowWatermark(!showWatermark)}
-                className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-300 focus:outline-none ${
-                  showWatermark 
-                    ? (isDarkMode ? 'bg-[#98c379]' : 'bg-gray-700') // Earthy Green for active
-                    : (isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300')
-                }`}
-              >
-                <div 
-                  className={`bg-white w-3 h-3 rounded-full shadow-md transform duration-300 ease-in-out ${showWatermark ? 'translate-x-4' : 'translate-x-0'}`} 
-                />
-              </button>
+          {/* Controls visible in Poster Mode */}
+          {viewMode === ViewMode.Poster && (
+             <>
+                {/* Watermark Controls */}
+                <div className="flex items-center gap-3 flex-shrink-0 animate-in fade-in zoom-in duration-300">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:inline transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-gray-400'}`}>署名</span>
+                    
+                    {/* Toggle Switch */}
+                    <button 
+                        onClick={() => setShowWatermark(!showWatermark)}
+                        className={`w-8 h-4 flex items-center rounded-full p-0.5 transition-colors duration-300 focus:outline-none ${
+                        showWatermark 
+                            ? (isDarkMode ? 'bg-[#98c379]' : 'bg-gray-700') // Earthy Green for active
+                            : (isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300')
+                        }`}
+                    >
+                        <div 
+                        className={`bg-white w-3 h-3 rounded-full shadow-md transform duration-300 ease-in-out ${showWatermark ? 'translate-x-4' : 'translate-x-0'}`} 
+                        />
+                    </button>
 
-              {/* Input Field */}
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showWatermark ? 'w-32 sm:w-48 opacity-100' : 'w-0 opacity-0'}`}>
-                <input 
-                  type="text" 
-                  value={watermarkText}
-                  onChange={(e) => setWatermarkText(e.target.value.slice(0, 30))}
-                  placeholder="人人智学社 rrzxs.com"
-                  maxLength={30}
-                  className={`w-full text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 transition-all placeholder:text-gray-500 ${
-                    isDarkMode 
-                      ? 'bg-[#282c34] border border-[#3e4451] text-[#d4cfbf] focus:ring-[#abb2bf]/30' 
-                      : 'bg-white border border-gray-300 text-gray-700 focus:ring-gray-400'
-                  }`}
-                />
-              </div>
-          </div>
+                    {/* Input Field */}
+                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showWatermark ? 'w-24 sm:w-48 opacity-100' : 'w-0 opacity-0'}`}>
+                        <input 
+                        type="text" 
+                        value={watermarkText}
+                        onChange={(e) => setWatermarkText(e.target.value.slice(0, 30))}
+                        placeholder="人人智学社"
+                        maxLength={30}
+                        className={`w-full text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 transition-all placeholder:text-gray-500 ${
+                            isDarkMode 
+                            ? 'bg-[#282c34] border border-[#3e4451] text-[#d4cfbf] focus:ring-[#abb2bf]/30' 
+                            : 'bg-white border border-gray-300 text-gray-700 focus:ring-gray-400'
+                        }`}
+                        />
+                    </div>
+                </div>
 
-          <div className={`h-4 w-px flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-200'}`}></div>
+                <div className={`h-4 w-px flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-200'}`}></div>
+             </>
+          )}
 
-          {/* Font Size Selector */}
+          {/* Font Size Selector (Always Visible) */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:inline transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-gray-400'}`}>字号</span>
             <div className={`flex items-center rounded-md border p-0.5 transition-colors ${isDarkMode ? 'bg-[#282c34] border-[#3e4451]' : 'bg-gray-200/50 border-gray-200'}`}>
@@ -119,98 +164,175 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
             </div>
           </div>
 
-          <div className={`h-4 w-px flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-200'}`}></div>
-
-          {/* Theme Selector */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:inline transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-gray-400'}`}>主题</span>
-            <select 
-              value={currentTheme}
-              onChange={(e) => setTheme(e.target.value as BorderTheme)}
-              className={`text-xs font-bold py-1 pl-2 pr-6 rounded focus:outline-none cursor-pointer hover:border-opacity-50 transition-colors h-7 focus:ring-1 appearance-none border ${
-                isDarkMode 
-                  ? 'bg-[#282c34] border-[#3e4451] text-[#d4cfbf] hover:border-[#abb2bf] focus:ring-[#abb2bf]/30' 
-                  : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 focus:ring-gray-200'
-              }`}
-              style={{
-                backgroundImage: isDarkMode 
-                  ? `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239da5b4' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`
-                  : `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-                backgroundPosition: 'right 0.25rem center',
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: '1.25em 1.25em'
-              }}
-            >
-              {themes.map(t => (
-                <option key={t} value={t} className={isDarkMode ? 'bg-[#282c34]' : ''}>{themeNames[t]}</option>
-              ))}
-            </select>
-          </div>
+          {/* Theme Selector (Poster Only) */}
+          {viewMode === ViewMode.Poster && (
+            <>
+                <div className={`h-4 w-px flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-200'}`}></div>
+                <div className="flex items-center gap-2 flex-shrink-0 animate-in fade-in zoom-in duration-300">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest hidden sm:inline transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-gray-400'}`}>主题</span>
+                    <select 
+                    value={currentTheme}
+                    onChange={(e) => setTheme(e.target.value as BorderTheme)}
+                    className={`text-xs font-bold py-1 pl-2 pr-6 rounded focus:outline-none cursor-pointer hover:border-opacity-50 transition-colors h-7 focus:ring-1 appearance-none border ${
+                        isDarkMode 
+                        ? 'bg-[#282c34] border-[#3e4451] text-[#d4cfbf] hover:border-[#abb2bf] focus:ring-[#abb2bf]/30' 
+                        : 'bg-white border-gray-300 text-gray-700 hover:border-gray-400 focus:ring-gray-200'
+                    }`}
+                    style={{
+                        backgroundImage: isDarkMode 
+                        ? `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239da5b4' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`
+                        : `url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+                        backgroundPosition: 'right 0.25rem center',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundSize: '1.25em 1.25em'
+                    }}
+                    >
+                    {themes.map(t => (
+                        <option key={t} value={t} className={isDarkMode ? 'bg-[#282c34]' : ''}>{themeNames[t]}</option>
+                    ))}
+                    </select>
+                </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Export Actions Dropdown (Fixed Right) */}
+      {/* Action Button: Changes based on Mode */}
       <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 relative group">
         
-        {/* Main Trigger Button */}
-        <button
-          className={`flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold text-white transition-all shadow-sm ${
-              isExporting 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : (isDarkMode 
-                    ? 'bg-[#e5c07b] text-[#282c34] hover:bg-[#d19a66] active:scale-95' 
-                    : 'bg-[#997343] hover:bg-[#85633e] active:scale-95')
-          }`}
-          disabled={isExporting}
-        >
-          {isExporting ? (
-             <span className="px-2">处理中...</span>
-          ) : (
+        {viewMode === ViewMode.Poster ? (
+            // --- POSTER MODE: EXPORT IMAGE ---
             <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                <span>导出</span>
-                <svg className="w-3 h-3 ml-0.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <button
+                className={`flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold text-white transition-all shadow-sm ${
+                    isExporting 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : (isDarkMode 
+                            ? 'bg-[#e5c07b] text-[#282c34] hover:bg-[#d19a66] active:scale-95' 
+                            : 'bg-[#997343] hover:bg-[#85633e] active:scale-95')
+                }`}
+                disabled={isExporting}
+                >
+                {isExporting ? (
+                    <span className="px-2">处理中...</span>
+                ) : (
+                    <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        <span>导出</span>
+                        <svg className="w-3 h-3 ml-0.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </>
+                )}
+                </button>
+
+                {!isExporting && (
+                    <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 min-w-[140px] transform origin-top-right scale-95 group-hover:scale-100">
+                        <div className={`rounded-lg shadow-xl border overflow-hidden backdrop-blur-sm ring-1 ring-black/5 ${
+                        isDarkMode 
+                            ? 'bg-[#1e2227]/95 border-[#3e4451]' 
+                            : 'bg-white/95 border-gray-100'
+                        }`}>
+                        
+                        <button
+                            onClick={onExport}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-colors ${
+                            isDarkMode 
+                                ? 'text-[#abb2bf] hover:bg-[#2c313a] hover:text-[#e5c07b]' 
+                                : 'text-gray-700 hover:bg-orange-50 hover:text-[#997343]'
+                            }`}
+                        >
+                            <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            保存图片
+                        </button>
+
+                        <div className={`h-px w-full ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-100'}`}></div>
+
+                        <button
+                            onClick={onCopyImage}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-colors ${
+                            isDarkMode 
+                                ? 'text-[#abb2bf] hover:bg-[#2c313a] hover:text-[#e5c07b]' 
+                                : 'text-gray-700 hover:bg-orange-50 hover:text-[#997343]'
+                            }`}
+                        >
+                            <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                            复制剪贴板
+                        </button>
+
+                        </div>
+                    </div>
+                )}
             </>
-          )}
-        </button>
-
-        {/* Hover Dropdown Menu */}
-        {!isExporting && (
-            <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 min-w-[140px] transform origin-top-right scale-95 group-hover:scale-100">
-                <div className={`rounded-lg shadow-xl border overflow-hidden backdrop-blur-sm ring-1 ring-black/5 ${
-                isDarkMode 
-                    ? 'bg-[#1e2227]/95 border-[#3e4451]' 
-                    : 'bg-white/95 border-gray-100'
-                }`}>
-                
+        ) : (
+            // --- WRITING MODE: SAVE/EXPORT SOURCE ---
+            <>
                 <button
-                    onClick={onExport}
-                    className={`w-full text-left px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-colors ${
-                    isDarkMode 
-                        ? 'text-[#abb2bf] hover:bg-[#2c313a] hover:text-[#e5c07b]' 
-                        : 'text-gray-700 hover:bg-orange-50 hover:text-[#997343]'
-                    }`}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold text-white transition-all shadow-sm ${
+                    isExportingZip
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : (isDarkMode 
+                            ? 'bg-[#e5c07b] text-[#282c34] hover:bg-[#d19a66] active:scale-95' 
+                            : 'bg-[#997343] hover:bg-[#85633e] active:scale-95')
+                }`}
+                disabled={isExportingZip}
                 >
-                    <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    保存图片
+                {isExportingZip ? (
+                    <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span>打包中...</span>
+                    </>
+                ) : (
+                    <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                        <span>保存</span>
+                        <svg className="w-3 h-3 ml-0.5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </>
+                )}
                 </button>
 
-                <div className={`h-px w-full ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-100'}`}></div>
+                {!isExportingZip && (
+                    <div className="absolute right-0 top-full pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 min-w-[160px] transform origin-top-right scale-95 group-hover:scale-100">
+                        <div className={`rounded-lg shadow-xl border overflow-hidden backdrop-blur-sm ring-1 ring-black/5 ${
+                        isDarkMode 
+                            ? 'bg-[#1e2227]/95 border-[#3e4451]' 
+                            : 'bg-white/95 border-gray-100'
+                        }`}>
+                        
+                        <button
+                            onClick={onSaveMarkdown}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-colors ${
+                            isDarkMode 
+                                ? 'text-[#abb2bf] hover:bg-[#2c313a] hover:text-[#e5c07b]' 
+                                : 'text-gray-700 hover:bg-orange-50 hover:text-[#997343]'
+                            }`}
+                        >
+                            <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            <div>
+                                <div className="font-bold">仅源码 (.md)</div>
+                                <div className="text-[10px] opacity-60 font-normal">轻量，不含图片</div>
+                            </div>
+                        </button>
 
-                <button
-                    onClick={onCopyImage}
-                    className={`w-full text-left px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-colors ${
-                    isDarkMode 
-                        ? 'text-[#abb2bf] hover:bg-[#2c313a] hover:text-[#e5c07b]' 
-                        : 'text-gray-700 hover:bg-orange-50 hover:text-[#997343]'
-                    }`}
-                >
-                    <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                    复制剪贴板
-                </button>
+                        <div className={`h-px w-full ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-100'}`}></div>
 
-                </div>
-            </div>
+                        <button
+                            onClick={onExportZip}
+                            className={`w-full text-left px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-colors ${
+                            isDarkMode 
+                                ? 'text-[#abb2bf] hover:bg-[#2c313a] hover:text-[#e5c07b]' 
+                                : 'text-gray-700 hover:bg-orange-50 hover:text-[#997343]'
+                            }`}
+                        >
+                            <svg className="w-3.5 h-3.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                            <div>
+                                <div className="font-bold">导出工程 (.zip)</div>
+                                <div className="text-[10px] opacity-60 font-normal">包含本地与网络图片</div>
+                            </div>
+                        </button>
+
+                        </div>
+                    </div>
+                )}
+            </>
         )}
 
       </div>

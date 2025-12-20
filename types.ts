@@ -20,6 +20,11 @@ export enum FontSize {
   Large = 'Large'
 }
 
+export enum ViewMode {
+  Poster = 'Poster',
+  Writing = 'Writing'
+}
+
 export interface BorderStyleConfig {
   frame: string;      // NEW: The background style of the safety outer frame
   card: string;       // The inner container styling (border, shadow, radius)

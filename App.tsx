@@ -4,7 +4,11 @@ import remarkGfm from 'remark-gfm';
 import { toPng, toBlob } from 'html-to-image';
 import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
-import { BorderTheme, BorderStyleConfig, FontSize } from './types';
+import { BorderTheme, BorderStyleConfig, FontSize, ViewMode } from './types';
+// @ts-ignore
+import JSZip from 'jszip';
+// @ts-ignore
+import FileSaver from 'file-saver';
 
 const DEFAULT_MARKDOWN = `# Markdown 海报生成器
 
@@ -56,6 +60,30 @@ const getCorsFriendlyUrl = (url?: string) => {
     return `https://wsrv.nl/?url=${encodeURIComponent(url)}&output=png`;
   } catch {
     return url;
+  }
+};
+
+// Convert Data URI to Blob
+const dataURItoBlob = (dataURI: string) => {
+  const byteString = atob(dataURI.split(',')[1]);
+  const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeString });
+};
+
+// Get Extension from Mime
+const getExtensionFromMime = (mime: string) => {
+  switch(mime) {
+    case 'image/jpeg': return 'jpg';
+    case 'image/png': return 'png';
+    case 'image/webp': return 'webp';
+    case 'image/gif': return 'gif';
+    case 'image/svg+xml': return 'svg';
+    default: return 'png';
   }
 };
 
@@ -226,10 +254,16 @@ const STORAGE_KEY_FONT_SIZE = 'markdown_poster_fontsize';
 const STORAGE_KEY_WATERMARK_SHOW = 'markdown_poster_watermark_show';
 const STORAGE_KEY_WATERMARK_TEXT = 'markdown_poster_watermark_text';
 const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
-const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; // New key for images
+const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; 
+const STORAGE_KEY_VIEW_MODE = 'markdown_poster_view_mode';
 
 // Max History Steps
 const MAX_HISTORY_SIZE = 10;
+
+// Helper to determine if a theme is dark-based (for Writing Mode contrast)
+const isThemeDark = (theme: BorderTheme) => {
+  return [BorderTheme.Neon, BorderTheme.Ocean, BorderTheme.Poster].includes(theme);
+};
 
 export default function App() {
   // --- STATE INITIALIZATION WITH LOCALSTORAGE ---
@@ -276,7 +310,13 @@ export default function App() {
     return false;
   });
 
-  // 6. Image Pool (Virtual File System) with Startup Garbage Collection (GC)
+  // 6. View Mode (Poster vs Writing)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_VIEW_MODE);
+    return (saved as ViewMode) || ViewMode.Poster;
+  });
+
+  // 7. Image Pool (Virtual File System) with Startup Garbage Collection (GC)
   const [imagePool, setImagePool] = useState<Record<string, string>>(() => {
     try {
       const savedPoolStr = localStorage.getItem(STORAGE_KEY_IMAGE_POOL);
@@ -322,6 +362,10 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY_DARK_MODE, String(isDarkMode));
   }, [isDarkMode]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode);
+  }, [viewMode]);
+
   // Persist Image Pool (Debounced or separate to avoid lag on huge images, but simple useEffect here)
   useEffect(() => {
     try {
@@ -335,6 +379,7 @@ export default function App() {
   // ---------------------------
 
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingZip, setIsExportingZip] = useState(false); // NEW
   const [exportVersion, setExportVersion] = useState(0);
   const [exportAction, setExportAction] = useState<'download' | 'copy' | null>(null);
   const [leftWidth, setLeftWidth] = useState(50); 
@@ -790,6 +835,99 @@ export default function App() {
     setExportVersion(v => v + 1);
   };
 
+  // NEW: Handle Zip Export
+  const handleExportZip = async () => {
+    if (isExportingZip) return;
+    setIsExportingZip(true);
+
+    try {
+        const zip = new JSZip();
+        // Create an assets folder
+        const assetsFolder = zip.folder("assets");
+        
+        let processedMarkdown = markdown;
+        let networkImageCounter = 0;
+
+        // Regex to find all images: ![alt](src)
+        // We use a replacer function to build the new markdown and side-effect populating the zip
+        const replacements = new Map<string, string>(); // url -> newPath
+        
+        // 1. Find all image matches
+        const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
+        const matches = [...markdown.matchAll(imageRegex)];
+        
+        // 2. Process images sequentially
+        for (const match of matches) {
+            const originalSrc = match[2];
+            
+            // Avoid duplicate processing if the same image is used twice
+            if (replacements.has(originalSrc)) continue;
+
+            try {
+                if (originalSrc.startsWith('local://')) {
+                    // --- HANDLE LOCAL IMAGE ---
+                    const imgId = originalSrc.replace('local://', '');
+                    const base64Data = imagePool[imgId];
+                    
+                    if (base64Data) {
+                        // Extract MIME and extension
+                        const mime = base64Data.split(';')[0].split(':')[1];
+                        const ext = getExtensionFromMime(mime);
+                        const filename = `${imgId}.${ext}`;
+                        
+                        // Convert to blob and add to zip
+                        const blob = dataURItoBlob(base64Data);
+                        assetsFolder?.file(filename, blob);
+                        
+                        replacements.set(originalSrc, `./assets/${filename}`);
+                    }
+                } else if (originalSrc.startsWith('http')) {
+                    // --- HANDLE NETWORK IMAGE ---
+                    // Use CORS proxy to ensure we can fetch it
+                    const fetchUrl = getCorsFriendlyUrl(originalSrc);
+                    
+                    const response = await fetch(fetchUrl);
+                    if (!response.ok) throw new Error(`Failed to fetch ${originalSrc}`);
+                    
+                    const blob = await response.blob();
+                    const ext = getExtensionFromMime(blob.type);
+                    const filename = `net_img_${Date.now()}_${networkImageCounter}.${ext}`;
+                    networkImageCounter++;
+
+                    assetsFolder?.file(filename, blob);
+                    replacements.set(originalSrc, `./assets/${filename}`);
+                }
+            } catch (err) {
+                console.error(`Failed to process image: ${originalSrc}`, err);
+                // If failed, we just keep the original URL in the markdown (don't add to map)
+            }
+        }
+
+        // 3. Replace paths in Markdown
+        // We do a simple replaceAll for each processed source
+        replacements.forEach((newPath, oldSrc) => {
+            // Escape special regex characters in oldSrc if using replace with regex, 
+            // but string.replaceAll() handles literal strings nicely in modern browsers.
+            processedMarkdown = processedMarkdown.replaceAll(`(${oldSrc})`, `(${newPath})`);
+        });
+
+        // 4. Add index.md
+        zip.file("index.md", processedMarkdown);
+
+        // 5. Generate and Save
+        const content = await zip.generateAsync({ type: "blob" });
+        // Handle different export structures of file-saver
+        const saveAs = (FileSaver as any).saveAs || FileSaver;
+        saveAs(content, `markdown-project-${Date.now()}.zip`);
+
+    } catch (e) {
+        console.error("Export Zip Failed", e);
+        alert("打包导出失败，请检查网络或重试。");
+    } finally {
+        setIsExportingZip(false);
+    }
+  };
+
   const handleDownloadMarkdown = () => {
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -879,7 +1017,14 @@ export default function App() {
         It sits at the top and switches color based on theme.
       */}
       <div className="relative z-50">
-         <Toolbar isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+         <Toolbar 
+            isDarkMode={isDarkMode} 
+            onToggleTheme={toggleTheme}
+            onSaveMarkdown={handleDownloadMarkdown}
+            onExportZip={handleExportZip}
+            isExportingZip={isExportingZip}
+            viewMode={viewMode}
+         />
       </div>
 
       <div className="flex flex-1 overflow-hidden relative">
@@ -1037,25 +1182,11 @@ export default function App() {
                         accept=".md,.txt" 
                         onChange={handleFileImport} 
                         className="hidden" 
-                        />
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                      />
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                         <span>导入</span>
                     </label>
                  </div>
-
-                 <button 
-                    type="button"
-                    onClick={handleDownloadMarkdown} 
-                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}
-                    title="保存 Markdown 文件"
-                >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 21v-8H7v8" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 3v5h8" />
-                    </svg>
-                    <span>保存</span>
-                 </button>
 
              </div>
           </div>
@@ -1110,6 +1241,12 @@ export default function App() {
             setTheme={setTheme} 
             onExport={() => handleExport('download')}
             onCopyImage={() => handleExport('copy')}
+            
+            // Pass Saving Props
+            onSaveMarkdown={handleDownloadMarkdown}
+            onExportZip={handleExportZip}
+            isExportingZip={isExportingZip}
+            
             isExporting={isExporting}
             showWatermark={showWatermark}
             setShowWatermark={setShowWatermark}
@@ -1118,73 +1255,97 @@ export default function App() {
             fontSize={fontSize}
             setFontSize={setFontSize}
             isDarkMode={isDarkMode}
+            
+            // Pass ViewMode Props
+            viewMode={viewMode}
+            setViewMode={setViewMode}
           />
           
-          <div className={`flex-1 overflow-y-auto flex flex-col items-center transition-all duration-500 [background-size:20px_20px] ${
-              isDarkMode 
-                ? 'bg-[radial-gradient(#333842_1px,transparent_1px)]' 
-                : 'bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]'
-          }`}>
-             <div className="w-full pt-10 pb-24 px-8 flex justify-center min-h-min">
-              <div 
-                ref={exportRef}
-                key={`export-container-${exportVersion}`}
-                className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
-              >
-                
-                <div className={`w-full ${currentStyle.card}`}>
-                  {theme === BorderTheme.MacOS && (
-                    <div className={currentStyle.header}>
-                      <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
-                      <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
-                      <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
+          {/* Conditional Rendering based on ViewMode */}
+          {viewMode === ViewMode.Poster ? (
+             /* --- POSTER MODE RENDER --- */
+             <div className={`flex-1 overflow-y-auto flex flex-col items-center transition-all duration-500 [background-size:20px_20px] ${
+                isDarkMode 
+                  ? 'bg-[radial-gradient(#333842_1px,transparent_1px)]' 
+                  : 'bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]'
+            }`}>
+               <div className="w-full pt-10 pb-24 px-8 flex justify-center min-h-min">
+                <div 
+                  ref={exportRef}
+                  key={`export-container-${exportVersion}`}
+                  className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
+                >
+                  
+                  <div className={`w-full ${currentStyle.card}`}>
+                    {theme === BorderTheme.MacOS && (
+                      <div className={currentStyle.header}>
+                        <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
+                        <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
+                        <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
+                      </div>
+                    )}
+  
+                    {theme === BorderTheme.Sunset && (
+                       <div className={currentStyle.header}>
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                            <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                          </div>
+                       </div>
+                    )}
+  
+                    {theme === BorderTheme.Candy && (
+                       <div className={currentStyle.header}>
+                          <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
+                          <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
+                          <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
+                       </div>
+                    )}
+  
+                    {theme === BorderTheme.Ocean && (
+                       <div className={currentStyle.header}></div>
+                    )}
+                    
+                    <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none [&>:last-child]:mb-0`}>
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        urlTransform={(value) => value}
+                        components={{
+                          img: (props) => <StableImage {...props} imagePool={imagePool} />
+                        }}
+                      >
+                        {markdown}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+  
+                  {showWatermark && (
+                    <div className={`mt-6 text-right opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor}`}>
+                      {watermarkText || "人人智学社 rrzxs.com"}
                     </div>
                   )}
-
-                  {theme === BorderTheme.Sunset && (
-                     <div className={currentStyle.header}>
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                          <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                        </div>
-                     </div>
-                  )}
-
-                  {theme === BorderTheme.Candy && (
-                     <div className={currentStyle.header}>
-                        <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
-                        <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
-                        <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
-                     </div>
-                  )}
-
-                  {theme === BorderTheme.Ocean && (
-                     <div className={currentStyle.header}></div>
-                  )}
-                  
-                  <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none [&>:last-child]:mb-0`}>
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
-                      urlTransform={(value) => value}
-                      components={{
-                        // Pass imagePool to StableImage
-                        img: (props) => <StableImage {...props} imagePool={imagePool} />
-                      }}
-                    >
-                      {markdown}
-                    </ReactMarkdown>
-                  </div>
+  
                 </div>
-
-                {showWatermark && (
-                  <div className={`mt-6 text-right opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor}`}>
-                    {watermarkText || "人人智学社 rrzxs.com"}
-                  </div>
-                )}
-
               </div>
             </div>
-          </div>
+          ) : (
+            /* --- WRITING MODE RENDER --- */
+            <div className={`flex-1 overflow-y-auto overflow-x-hidden transition-colors duration-500 ${currentStyle.frame} px-8 md:px-16`}>
+               <div className="w-full max-w-4xl mx-auto py-16 min-h-full">
+                  <div className={`prose max-w-none ${isThemeDark(theme) ? 'prose-invert prose-p:text-[#abb2bf] prose-headings:text-[#d4cfbf]' : 'prose-slate prose-lg'} ${getFontSizeClass(fontSize)}`}>
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        urlTransform={(value) => value}
+                        components={{
+                          img: (props) => <StableImage {...props} imagePool={imagePool} />
+                        }}
+                      >
+                        {markdown}
+                      </ReactMarkdown>
+                  </div>
+               </div>
+            </div>
+          )}
 
         </div>
       </div>
