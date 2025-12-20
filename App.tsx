@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { toPng, toBlob } from 'html-to-image';
 import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
-import { BorderTheme, BorderStyleConfig, FontSize, ViewMode } from './types';
+import { BorderTheme, BorderStyleConfig, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign } from './types';
 // @ts-ignore
 import JSZip from 'jszip';
 // @ts-ignore
@@ -23,7 +23,7 @@ const DEFAULT_MARKDOWN = `# Markdown 海报生成器
    - [x] 文本主题背景
    - [x] 字体大小
    - [x] 画布宽度
-   - [x] 署名
+   - [x] 署名位置
 3. 所见即所得，可**下载为PNG 图片**或者复制图片到**剪贴板**。
 4. 最大亮点，可以直接**黏贴图片**，或者**选择本地图片**插入编辑器
 
@@ -250,9 +250,12 @@ const StableImage = ({ src, alt, imagePool, node, ...props }: any) => {
 // LocalStorage Keys
 const STORAGE_KEY_MARKDOWN = 'markdown_poster_draft';
 const STORAGE_KEY_THEME = 'markdown_poster_theme';
+const STORAGE_KEY_LAYOUT_THEME = 'markdown_poster_layout_theme';
 const STORAGE_KEY_FONT_SIZE = 'markdown_poster_fontsize';
+const STORAGE_KEY_PADDING = 'markdown_poster_padding';
 const STORAGE_KEY_WATERMARK_SHOW = 'markdown_poster_watermark_show';
 const STORAGE_KEY_WATERMARK_TEXT = 'markdown_poster_watermark_text';
+const STORAGE_KEY_WATERMARK_ALIGN = 'markdown_poster_watermark_align';
 const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
 const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; 
 const STORAGE_KEY_VIEW_MODE = 'markdown_poster_view_mode';
@@ -280,13 +283,25 @@ export default function App() {
     return (saved as BorderTheme) || BorderTheme.MacOS;
   });
 
-  // 3. Font Size
+  // 3. Layout Theme
+  const [layoutTheme, setLayoutTheme] = useState<LayoutTheme>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_LAYOUT_THEME);
+    return (saved as LayoutTheme) || LayoutTheme.Base;
+  });
+
+  // 4. Font Size
   const [fontSize, setFontSize] = useState<FontSize>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
     return (saved as FontSize) || FontSize.Medium;
   });
+
+  // 5. Padding (Now controls Frame Width)
+  const [padding, setPadding] = useState<PaddingSize>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_PADDING);
+    return (saved as PaddingSize) || PaddingSize.Medium;
+  });
   
-  // 4. Watermark Settings
+  // 6. Watermark Settings
   const [showWatermark, setShowWatermark] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_WATERMARK_SHOW);
     return saved !== null ? saved === 'true' : true;
@@ -297,7 +312,12 @@ export default function App() {
     return saved !== null ? saved : "";
   });
 
-  // 5. Dark Mode (with system preference fallback)
+  const [watermarkAlign, setWatermarkAlign] = useState<WatermarkAlign>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_WATERMARK_ALIGN);
+    return (saved as WatermarkAlign) || WatermarkAlign.Right;
+  });
+
+  // 7. Dark Mode (with system preference fallback)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_DARK_MODE);
     if (saved !== null) {
@@ -310,13 +330,13 @@ export default function App() {
     return false;
   });
 
-  // 6. View Mode (Poster vs Writing)
+  // 8. View Mode (Poster vs Writing)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_VIEW_MODE);
     return (saved as ViewMode) || ViewMode.Poster;
   });
 
-  // 7. Image Pool (Virtual File System) with Startup Garbage Collection (GC)
+  // 9. Image Pool (Virtual File System)
   const [imagePool, setImagePool] = useState<Record<string, string>>(() => {
     try {
       const savedPoolStr = localStorage.getItem(STORAGE_KEY_IMAGE_POOL);
@@ -326,7 +346,7 @@ export default function App() {
 
       let pool = savedPoolStr ? JSON.parse(savedPoolStr) : {};
 
-      // --- STARTUP GC LOGIC (Refactored) ---
+      // --- STARTUP GC LOGIC ---
       const { cleanedPool } = cleanImagePool(pool, contentToCheck, 'Startup');
       
       return cleanedPool;
@@ -347,8 +367,16 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_LAYOUT_THEME, layoutTheme);
+  }, [layoutTheme]);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEY_FONT_SIZE, fontSize);
   }, [fontSize]);
+  
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_PADDING, padding);
+  }, [padding]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_WATERMARK_SHOW, String(showWatermark));
@@ -357,6 +385,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_WATERMARK_TEXT, watermarkText);
   }, [watermarkText]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_WATERMARK_ALIGN, watermarkAlign);
+  }, [watermarkAlign]);
   
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_DARK_MODE, String(isDarkMode));
@@ -366,20 +398,18 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode);
   }, [viewMode]);
 
-  // Persist Image Pool (Debounced or separate to avoid lag on huge images, but simple useEffect here)
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_IMAGE_POOL, JSON.stringify(imagePool));
     } catch (e) {
-      console.warn("LocalStorage quota exceeded. Some images may not be saved locally.", e);
-      // We don't block the UI, just warn. Images will work for the session.
+      console.warn("LocalStorage quota exceeded.", e);
     }
   }, [imagePool]);
 
   // ---------------------------
 
   const [isExporting, setIsExporting] = useState(false);
-  const [isExportingZip, setIsExportingZip] = useState(false); // NEW
+  const [isExportingZip, setIsExportingZip] = useState(false); 
   const [exportVersion, setExportVersion] = useState(0);
   const [exportAction, setExportAction] = useState<'download' | 'copy' | null>(null);
   const [leftWidth, setLeftWidth] = useState(50); 
@@ -388,10 +418,7 @@ export default function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // --- HISTORY / UNDO SYSTEM ---
-  const [history, setHistory] = useState<string[]>(() => {
-    // Initialize history with current markdown (from localStorage or default)
-    return [markdown]; 
-  });
+  const [history, setHistory] = useState<string[]>(() => [markdown]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -459,7 +486,6 @@ export default function App() {
     setMarkdown(newText);
     pushToHistory(newText);
     requestAnimationFrame(() => {
-        // Prevent scroll to avoid jumping to top when clicking toolbar buttons
         textareaRef.current?.focus({ preventScroll: true });
     });
   };
@@ -485,7 +511,6 @@ export default function App() {
     const end = textarea.selectionEnd;
     const currentText = textarea.value;
 
-    // Replace selected text or insert at cursor
     const beforeText = currentText.substring(0, start);
     const afterText = currentText.substring(end);
 
@@ -496,7 +521,6 @@ export default function App() {
 
     requestAnimationFrame(() => {
         if (textareaRef.current) {
-            // Explicitly prevent scroll here as well
             textareaRef.current.focus({ preventScroll: true });
             textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
         }
@@ -512,13 +536,9 @@ export default function App() {
     const textarea = textareaRef.current;
     if (!textarea) return;
     
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    
-    // Only copy if something is selected
-    if (start === end) return;
+    if (textarea.selectionStart === textarea.selectionEnd) return;
 
-    const text = textarea.value.substring(start, end);
+    const text = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
     try {
       await navigator.clipboard.writeText(text);
     } catch (err) {
@@ -526,7 +546,6 @@ export default function App() {
     }
   };
 
-  // Helper for generic insert at cursor (used for Bold, Link)
   const insertMarkdownSyntax = (prefix: string, suffix: string = '', placeholder: string = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -568,28 +587,19 @@ export default function App() {
     });
   };
 
-  // NEW: Logic for inserting syntax at the START of the current line (List, Quote)
   const handleLinePrefix = (prefix: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
     const cursorPosition = textarea.selectionStart;
     const text = textarea.value;
-
-    // Find the start of the current line (backward search for \n)
-    // selectionStart is 0-based. 
-    // If cursor is at 0, lastIndexOf returns -1, start index becomes 0. Correct.
-    // If cursor is after \n, lastIndexOf returns that index. +1 gives char after \n.
     const lineStart = text.lastIndexOf('\n', cursorPosition - 1) + 1;
-
     const beforeLine = text.substring(0, lineStart);
     const afterLine = text.substring(lineStart);
 
-    // Insert prefix at line start
     const newText = beforeLine + prefix + afterLine;
     updateMarkdownImmediate(newText);
 
-    // Shift cursor by prefix length so user keeps relative position
     const newCursorPos = cursorPosition + prefix.length;
 
     requestAnimationFrame(() => {
@@ -600,20 +610,14 @@ export default function App() {
     });
   };
 
-  // NEW: Logic specifically for Headings (#)
   const handleHeading = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
     const cursorPosition = textarea.selectionStart;
     const text = textarea.value;
-
     const lineStart = text.lastIndexOf('\n', cursorPosition - 1) + 1;
-    
-    // Check first character of the line
     const firstChar = text.charAt(lineStart);
-    
-    // Logic: If starts with #, add # (no space). If not, add # (with space).
     const prefix = firstChar === '#' ? '#' : '# ';
 
     const beforeLine = text.substring(0, lineStart);
@@ -635,27 +639,17 @@ export default function App() {
   // --- VIRTUAL FILE SYSTEM IMAGE HANDLER ---
   const processImageFile = async (file: File) => {
     try {
-        // Compress the image before storing
-        // This is critical to save LocalStorage space
-        // UPDATED: Now returns WebP (transparent & small)
         const compressedDataUrl = await compressImage(file);
-        
-        // Safety check: if compressed image is still huge (e.g. > 800KB), 
-        // it might block LS quickly. 
         if (compressedDataUrl.length > 800 * 1024) { 
              alert("即便经过压缩，图片依然过大，建议上传更小的图片（推荐 < 2MB）。");
              return;
         }
 
-        // Generate a simple ID
         const imgId = 'img_' + Math.random().toString(36).substr(2, 9);
         
-        // Update pool with safety check
         setImagePool(prev => {
             const newPool = { ...prev, [imgId]: compressedDataUrl };
             try {
-                // Dry run to see if it strings okay (simple heuristic)
-                // Real failure happens in useEffect logic, but we can catch here too.
                 const testStr = JSON.stringify(newPool);
                 if (testStr.length > 4.8 * 1024 * 1024) {
                      alert("本地存储空间即将耗尽，请先删除部分旧图片。");
@@ -668,7 +662,6 @@ export default function App() {
             }
         });
 
-        // Insert clean Markdown syntax without alt text
         insertTextAtCursor(`![](local://${imgId})`);
     } catch (e) {
         console.error("Image processing error:", e);
@@ -693,7 +686,7 @@ export default function App() {
             if (file) {
                 processImageFile(file);
             }
-            return; // Only handle the first image found
+            return; 
         }
     }
   };
@@ -727,7 +720,7 @@ export default function App() {
         return {
           frame: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600", 
           card: "bg-transparent", 
-          content: "bg-white/95 backdrop-blur-sm shadow-2xl rounded-xl px-8 pt-8 pb-6 min-h-[600px]",
+          content: "bg-white/95 backdrop-blur-sm shadow-2xl rounded-xl min-h-[600px]",
           prose: "prose-slate prose-lg",
           header: "hidden",
           watermarkColor: "text-white/80"
@@ -736,7 +729,7 @@ export default function App() {
         return {
           frame: "bg-[#fff7ed]",
           card: "bg-gradient-to-br from-orange-50 to-rose-50 border-4 border-orange-200 shadow-[0_20px_50px_-12px_rgba(251,146,60,0.5)] rounded-2xl overflow-hidden ring-4 ring-orange-100/50",
-          content: "bg-transparent text-gray-800 px-10 pt-10 pb-8",
+          content: "bg-transparent text-gray-800",
           prose: "prose-orange prose-headings:text-orange-900",
           header: "bg-orange-100/50 border-b border-orange-200/50 h-10 flex items-center px-4 space-x-2",
           watermarkColor: "text-orange-300"
@@ -745,7 +738,7 @@ export default function App() {
         return {
           frame: "bg-[#0f172a]",
           card: "bg-cyan-950 border border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.2)] rounded-xl overflow-hidden relative",
-          content: "bg-gradient-to-b from-cyan-900/50 to-blue-950/50 text-cyan-50 px-10 pt-10 pb-8",
+          content: "bg-gradient-to-b from-cyan-900/50 to-blue-950/50 text-cyan-50",
           prose: "prose-invert prose-headings:text-cyan-200 prose-a:text-cyan-400 [&_td]:text-cyan-50 [&_th]:text-cyan-200",
           header: "bg-cyan-900/40 border-b border-cyan-800 h-8 flex items-center justify-end px-4 space-x-2",
           watermarkColor: "text-cyan-800"
@@ -754,7 +747,7 @@ export default function App() {
         return {
           frame: "bg-[#fdf2f8]",
           card: "bg-white border-4 border-pink-400 shadow-[8px_8px_0px_0px_rgba(244,114,182,1)] rounded-3xl overflow-hidden",
-          content: "bg-yellow-50/50 text-gray-800 px-8 pt-8 pb-6 font-comic",
+          content: "bg-yellow-50/50 text-gray-800 font-comic",
           prose: "prose-pink prose-headings:text-pink-600 prose-strong:text-purple-600",
           header: "bg-pink-100 border-b-4 border-pink-400 h-10 flex items-center px-4 space-x-3",
           watermarkColor: "text-pink-300"
@@ -763,7 +756,7 @@ export default function App() {
         return {
           frame: "bg-[#171717]",
           card: "bg-gray-900 border-2 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] rounded-xl overflow-hidden",
-          content: "bg-gray-900 text-pink-50 px-8 pt-8 pb-6",
+          content: "bg-gray-900 text-pink-50",
           prose: "prose-invert prose-p:text-pink-100 prose-headings:text-pink-400 prose-strong:text-cyan-300 prose-code:text-yellow-300 [&_td]:text-pink-50 [&_th]:text-pink-400",
           watermarkColor: "text-pink-900"
         };
@@ -771,7 +764,7 @@ export default function App() {
         return {
           frame: "bg-[#f5f5f4]",
           card: "bg-white sketch-border p-2",
-          content: "bg-transparent text-gray-900 px-8 pt-8 pb-6 font-comic", 
+          content: "bg-transparent text-gray-900 font-comic", 
           prose: "prose-slate prose-headings:font-comic",
           watermarkColor: "text-stone-400"
         };
@@ -779,7 +772,7 @@ export default function App() {
         return {
           frame: "bg-[#e5dfce]",
           card: "bg-[#fdf6e3] border-4 border-double border-[#b58900] rounded-sm shadow-xl",
-          content: "bg-[#fdf6e3] text-[#657b83] px-10 pt-10 pb-8",
+          content: "bg-[#fdf6e3] text-[#657b83]",
           prose: "prose-headings:text-[#b58900] prose-a:text-[#268bd2] font-serif",
           watermarkColor: "text-[#b58900] opacity-40"
         };
@@ -787,7 +780,7 @@ export default function App() {
         return {
           frame: "bg-gradient-to-br from-indigo-100 to-purple-100",
           card: "bg-white/40 backdrop-blur-xl border border-white/50 shadow-2xl rounded-2xl ring-1 ring-black/5",
-          content: "bg-transparent text-gray-900 px-8 pt-8 pb-6",
+          content: "bg-transparent text-gray-900",
           prose: "prose-gray prose-headings:text-gray-900 font-sans",
           watermarkColor: "text-indigo-300"
         };
@@ -795,7 +788,7 @@ export default function App() {
         return {
           frame: "bg-[#f9fafb]",
           card: "bg-white border border-gray-200 shadow-sm",
-          content: "bg-white text-gray-900 px-10 pt-10 pb-8",
+          content: "bg-white text-gray-900",
           prose: "prose-stone",
           watermarkColor: "text-gray-300"
         };
@@ -805,7 +798,7 @@ export default function App() {
           frame: "bg-[#f3f4f6]",
           card: "bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden",
           header: "bg-gray-100 border-b border-gray-200 h-8 flex items-center px-4 space-x-2",
-          content: "bg-white text-gray-800 px-8 pt-8 pb-6",
+          content: "bg-white text-gray-800",
           prose: "prose-slate",
           watermarkColor: "text-gray-400"
         };
@@ -820,10 +813,32 @@ export default function App() {
     }
   };
 
+  // Maps LayoutTheme to typography classes
+  const getLayoutClass = (layout: LayoutTheme) => {
+    switch (layout) {
+      case LayoutTheme.Classic:
+        return 'font-serif tracking-tight prose-headings:font-serif';
+      case LayoutTheme.Vibrant:
+        // UPDATED: Added yellow background to em (italic) tags for Vibrant theme
+        return 'font-mono tracking-wide prose-headings:font-mono prose-headings:font-black [&_em]:bg-yellow-200 dark:[&_em]:bg-yellow-600 [&_em]:text-black dark:[&_em]:text-white [&_em]:px-1 [&_em]:rounded-sm [&_em]:not-italic';
+      case LayoutTheme.Base:
+      default:
+        return 'font-sans tracking-normal prose-headings:font-sans';
+    }
+  };
+
+  // Dynamic padding style object
+  const getFramePaddingClass = (val: PaddingSize) => {
+    switch (val) {
+        case PaddingSize.Narrow: return 'p-4 sm:p-6';
+        case PaddingSize.Wide: return 'p-8 sm:p-16';
+        case PaddingSize.Medium: default: return 'p-6 sm:p-10';
+    }
+  };
+
   const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
 
   const handleExport = (type: 'download' | 'copy') => {
-    // Run Garbage Collection before Export
     const { cleanedPool, removedCount } = cleanImagePool(imagePool, markdown, 'Pre-Export');
     
     if (removedCount > 0) {
@@ -842,50 +857,34 @@ export default function App() {
 
     try {
         const zip = new JSZip();
-        // Create an assets folder
         const assetsFolder = zip.folder("assets");
         
         let processedMarkdown = markdown;
         let networkImageCounter = 0;
-
-        // Regex to find all images: ![alt](src)
-        // We use a replacer function to build the new markdown and side-effect populating the zip
-        const replacements = new Map<string, string>(); // url -> newPath
+        const replacements = new Map<string, string>(); 
         
-        // 1. Find all image matches
         const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
         const matches = [...markdown.matchAll(imageRegex)];
         
-        // 2. Process images sequentially
         for (const match of matches) {
             const originalSrc = match[2];
-            
-            // Avoid duplicate processing if the same image is used twice
             if (replacements.has(originalSrc)) continue;
 
             try {
                 if (originalSrc.startsWith('local://')) {
-                    // --- HANDLE LOCAL IMAGE ---
                     const imgId = originalSrc.replace('local://', '');
                     const base64Data = imagePool[imgId];
                     
                     if (base64Data) {
-                        // Extract MIME and extension
                         const mime = base64Data.split(';')[0].split(':')[1];
                         const ext = getExtensionFromMime(mime);
                         const filename = `${imgId}.${ext}`;
-                        
-                        // Convert to blob and add to zip
                         const blob = dataURItoBlob(base64Data);
                         assetsFolder?.file(filename, blob);
-                        
                         replacements.set(originalSrc, `./assets/${filename}`);
                     }
                 } else if (originalSrc.startsWith('http')) {
-                    // --- HANDLE NETWORK IMAGE ---
-                    // Use CORS proxy to ensure we can fetch it
                     const fetchUrl = getCorsFriendlyUrl(originalSrc);
-                    
                     const response = await fetch(fetchUrl);
                     if (!response.ok) throw new Error(`Failed to fetch ${originalSrc}`);
                     
@@ -899,24 +898,16 @@ export default function App() {
                 }
             } catch (err) {
                 console.error(`Failed to process image: ${originalSrc}`, err);
-                // If failed, we just keep the original URL in the markdown (don't add to map)
             }
         }
 
-        // 3. Replace paths in Markdown
-        // We do a simple replaceAll for each processed source
         replacements.forEach((newPath, oldSrc) => {
-            // Escape special regex characters in oldSrc if using replace with regex, 
-            // but string.replaceAll() handles literal strings nicely in modern browsers.
-            processedMarkdown = processedMarkdown.replaceAll(`(${oldSrc})`, `(${newPath})`);
+            // Fix: replaceAll is not supported in ES2020 target, using split/join instead
+            processedMarkdown = processedMarkdown.split(`(${oldSrc})`).join(`(${newPath})`);
         });
 
-        // 4. Add index.md
         zip.file("index.md", processedMarkdown);
-
-        // 5. Generate and Save
         const content = await zip.generateAsync({ type: "blob" });
-        // Handle different export structures of file-saver
         const saveAs = (FileSaver as any).saveAs || FileSaver;
         saveAs(content, `markdown-project-${Date.now()}.zip`);
 
@@ -947,7 +938,6 @@ export default function App() {
       if (!exportRef.current) return;
 
       try {
-        // Wait for images to load (simplified check + slight delay for rendering)
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 800)));
         const images = Array.from(exportRef.current.querySelectorAll('img')) as HTMLImageElement[];
         await Promise.all(images.map(img => {
@@ -972,13 +962,11 @@ export default function App() {
             link.href = dataUrl;
             link.click();
         } else if (exportAction === 'copy') {
-            // toBlob is better for clipboard
             const blob = await toBlob(exportRef.current, options);
             if (blob) {
                 await navigator.clipboard.write([
                     new ClipboardItem({ [blob.type]: blob })
                 ]);
-                // Could add a toast here
                 alert('图片已复制到剪贴板！'); 
             }
         }
@@ -1011,11 +999,6 @@ export default function App() {
   return (
     <div className={`flex flex-col h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#23272e]' : 'bg-white'}`}>
       
-      {/* 
-        TOOLBAR: 
-        Simply sticky, no complex hiding/revealing behavior. 
-        It sits at the top and switches color based on theme.
-      */}
       <div className="relative z-50">
          <Toolbar 
             isDarkMode={isDarkMode} 
@@ -1033,7 +1016,7 @@ export default function App() {
           style={{ width: `${leftWidth}%` }}
           className={`flex flex-col z-10 relative transition-colors duration-500
             ${isDarkMode 
-                ? 'bg-[#23272e] shadow-none' // Dark Mode: Deep gray BG
+                ? 'bg-[#23272e] shadow-none' // Dark Mode
                 : 'bg-[#fdfcf5] border-r border-[#e0e0e0] shadow-[4px_0_24px_rgba(0,0,0,0.02)]' // Light Mode
             }
           `}
@@ -1042,168 +1025,58 @@ export default function App() {
           <div className={`h-12 flex items-center px-4 justify-between relative z-20 transition-colors duration-500
              ${isDarkMode ? 'bg-[#1e2227] border-b border-[#181a1f]' : 'bg-[#f4f2eb] border-b border-[#e8e6df]'}
           `}>
-             
-             {/* Left Group */}
              <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
-                
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                     <span className="text-[10px] font-bold text-[#8c8880] uppercase tracking-widest">Editor</span>
-                    <a 
-                    href="https://markdown.com.cn/basic-syntax/headings.html" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[#a8a49c] hover:text-[#8b7e74] transition-colors"
-                    title="Markdown 语法帮助"
-                    >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <a href="https://markdown.com.cn/basic-syntax/headings.html" target="_blank" rel="noopener noreferrer" className="text-[#a8a49c] hover:text-[#8b7e74] transition-colors" title="Markdown 语法帮助">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </a>
                 </div>
-                
                 <div className="w-px h-4 bg-[#d1d0c9] flex-shrink-0"></div>
-
-                {/* Markdown Buttons */}
                 <div className={`flex items-center gap-1 transition-all duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                    {/* Headings Button - Updated Logic */}
-                    <button onClick={handleHeading} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg>
-                    </button>
-                    {/* Bold Button - Keep Standard Logic */}
-                    <button onClick={() => insertMarkdownSyntax('**', '**')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="粗体">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg>
-                    </button>
-                    {/* List Button - Updated Logic */}
-                    <button onClick={() => handleLinePrefix('- ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="列表">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-                    </button>
-                    {/* Number List Button - Updated Logic */}
-                    <button onClick={() => handleLinePrefix('1. ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="数字列表">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>
-                    </button>
-                    
+                    <button onClick={handleHeading} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg></button>
+                    <button onClick={() => insertMarkdownSyntax('**', '**')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="粗体"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg></button>
+                    <button onClick={() => handleLinePrefix('- ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="列表"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
+                    <button onClick={() => handleLinePrefix('1. ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="数字列表"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg></button>
                     <div className={`w-px h-3 mx-1 flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
-
-                    {/* Quote Button - Updated Logic */}
-                    <button onClick={() => handleLinePrefix('> ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="引用">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9L9 9.01"/><path d="M15 9L14 9.01"/><path d="M3 21V11C3 6.58 6.58 3 11 3h2c4.42 0 8 3.58 8 8v10H3z"/></svg>
-                    </button>
-                    
+                    <button onClick={() => handleLinePrefix('> ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="引用"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9L9 9.01"/><path d="M15 9L14 9.01"/><path d="M3 21V11C3 6.58 6.58 3 11 3h2c4.42 0 8 3.58 8 8v10H3z"/></svg></button>
                     <div className={`w-px h-3 mx-1 flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
-
-                    <button onClick={() => insertMarkdownSyntax('[', '](https://example.com)', '链接文字')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="链接">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                    </button>
-                    
-                    {/* NEW: Image Upload Trigger */}
+                    <button onClick={() => insertMarkdownSyntax('[', '](https://example.com)', '链接文字')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="链接"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></button>
                     <label className={`p-1.5 rounded transition-colors flex-shrink-0 cursor-pointer ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="图片">
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleImageUpload} 
-                        className="hidden" 
-                      />
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                     </label>
                 </div>
              </div>
 
-             {/* Right Side: Actions */}
              <div className="flex items-center gap-3">
-                 {/* Undo/Redo Buttons */}
                  <div className="flex items-center gap-1">
-                   <button 
-                     type="button"
-                     onClick={handleUndo}
-                     disabled={historyIndex <= 0}
-                     className={`p-1.5 rounded transition-colors ${
-                        historyIndex > 0 
-                            ? (isDarkMode ? 'text-[#5c6370] hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]') 
-                            : 'text-gray-300/20 cursor-not-allowed'
-                     }`}
-                     title="撤销 (Ctrl+Z)"
-                   >
-                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
-                   </button>
-                   
-                   <button 
-                     type="button"
-                     onClick={handleRedo}
-                     disabled={historyIndex >= history.length - 1}
-                     className={`p-1.5 rounded transition-colors ${
-                        historyIndex < history.length - 1 
-                            ? (isDarkMode ? 'text-[#5c6370] hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]') 
-                            : 'text-gray-300/20 cursor-not-allowed'
-                     }`}
-                     title="重做 (Ctrl+Shift+Z)"
-                   >
-                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
-                   </button>
+                   <button type="button" onClick={handleUndo} disabled={historyIndex <= 0} className={`p-1.5 rounded transition-colors ${historyIndex > 0 ? (isDarkMode ? 'text-[#5c6370] hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]') : 'text-gray-300/20 cursor-not-allowed'}`} title="撤销 (Ctrl+Z)"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
+                   <button type="button" onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={`p-1.5 rounded transition-colors ${historyIndex < history.length - 1 ? (isDarkMode ? 'text-[#5c6370] hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]') : 'text-gray-300/20 cursor-not-allowed'}`} title="重做 (Ctrl+Shift+Z)"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
                  </div>
-
                  <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
-
-                 {/* Selection/Clipboard Buttons */}
                  <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleSelectAll}
-                        className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}
-                        title="全选"
-                    >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-                        <span>全选</span>
-                    </button>
-                    <button
-                        onClick={handleCopySelection}
-                        className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}
-                        title="复制选中内容"
-                    >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                        <span>复制</span>
-                    </button>
+                    <button onClick={handleSelectAll} className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`} title="全选"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg><span>全选</span></button>
+                    <button onClick={handleCopySelection} className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`} title="复制选中内容"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg><span>复制</span></button>
                  </div>
-
-                 <button 
-                    type="button"
-                    onClick={() => {
-                        updateMarkdownImmediate('');
-                    }} 
-                    className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#e06c75]' : 'text-[#8c8880] hover:text-red-500'}`}
-                    title="清空"
-                 >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    <span>清空</span>
-                 </button>
-
+                 <button type="button" onClick={() => updateMarkdownImmediate('')} className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#e06c75]' : 'text-[#8c8880] hover:text-red-500'}`} title="清空"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg><span>清空</span></button>
                  <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
-
                  <div className="flex items-center gap-3">
                     <label className={`cursor-pointer flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}>
-                        <input 
-                        type="file" 
-                        accept=".md,.txt" 
-                        onChange={handleFileImport} 
-                        className="hidden" 
-                      />
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                        <span>导入</span>
+                        <input type="file" accept=".md,.txt" onChange={handleFileImport} className="hidden" />
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg><span>导入</span>
                     </label>
                  </div>
-
              </div>
           </div>
-
           <div className="absolute top-[3.5rem] right-8 z-10 pointer-events-none select-none">
              <span className={`text-[10px] font-medium font-sans tracking-widest transition-colors ${isDarkMode ? 'text-[#5c6370]' : 'text-[#8c8880]/60'}`}>
                {wordCount} 字 <span className="mx-1 opacity-50">|</span> {dateStr}
              </span>
           </div>
-
           <textarea
             ref={textareaRef}
-            className={`flex-1 w-full px-8 pb-8 pt-9 resize-none focus:outline-none font-mono text-[15px] leading-[32px] bg-[length:100%_32px] bg-[position:0_0] bg-local transition-colors duration-500 ${
-                isDarkMode 
-                ? 'text-[#d4cfbf] bg-[image:linear-gradient(transparent_31px,#333842_31px)] placeholder-[#5c6370] bg-[#23272e]' // Earthy warm gray text
-                : 'text-[#2d2d2d] bg-transparent bg-[image:linear-gradient(transparent_31px,#e8e8e8_31px)] placeholder-gray-400/50'
-            }`}
+            className={`flex-1 w-full px-8 pb-8 pt-9 resize-none focus:outline-none font-mono text-[15px] leading-[32px] bg-[length:100%_32px] bg-[position:0_0] bg-local transition-colors duration-500 ${isDarkMode ? 'text-[#d4cfbf] bg-[image:linear-gradient(transparent_31px,#333842_31px)] placeholder-[#5c6370] bg-[#23272e]' : 'text-[#2d2d2d] bg-transparent bg-[image:linear-gradient(transparent_31px,#e8e8e8_31px)] placeholder-gray-400/50'}`}
             value={markdown}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
@@ -1214,19 +1087,9 @@ export default function App() {
         </div>
 
         {/* Resizer Handle */}
-        <div
-          className="w-6 -ml-3 h-full z-20 cursor-col-resize flex items-center justify-center group flex-shrink-0 select-none relative"
-          onMouseDown={startResizing}
-          title="拖动调整宽度"
-        >
+        <div className="w-6 -ml-3 h-full z-20 cursor-col-resize flex items-center justify-center group flex-shrink-0 select-none relative" onMouseDown={startResizing} title="拖动调整宽度">
            <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-px h-full transition-colors ${isDarkMode ? 'bg-transparent group-hover:bg-[#5c6370]/50' : 'bg-transparent group-hover:bg-[#8b7e74]/50'}`} />
-           
-           <div className={`relative z-30 w-2 h-16 border shadow-sm flex flex-col items-center justify-center gap-2 transition-all duration-200 
-               ${isDarkMode 
-                 ? 'bg-[#1e2227] border-[#181a1f] group-hover:bg-[#2c313a] group-hover:border-[#5c6370]' 
-                 : 'bg-white border-gray-300 group-hover:border-[#8b7e74] group-hover:bg-[#8b7e74]/10'
-               }`}
-           >
+           <div className={`relative z-30 w-2 h-16 border shadow-sm flex flex-col items-center justify-center gap-2 transition-all duration-200 ${isDarkMode ? 'bg-[#1e2227] border-[#181a1f] group-hover:bg-[#2c313a] group-hover:border-[#5c6370]' : 'bg-white border-gray-300 group-hover:border-[#8b7e74] group-hover:bg-[#8b7e74]/10'}`}>
              <div className={`w-0.5 h-0.5 ${isDarkMode ? 'bg-[#5c6370]' : 'bg-gray-400 group-hover:bg-[#8b7e74]'}`} />
              <div className={`w-0.5 h-0.5 ${isDarkMode ? 'bg-[#5c6370]' : 'bg-gray-400 group-hover:bg-[#8b7e74]'}`} />
              <div className={`w-0.5 h-0.5 ${isDarkMode ? 'bg-[#5c6370]' : 'bg-gray-400 group-hover:bg-[#8b7e74]'}`} />
@@ -1239,10 +1102,17 @@ export default function App() {
           <PreviewControlBar 
             currentTheme={theme} 
             setTheme={setTheme} 
+            // New props
+            layoutTheme={layoutTheme}
+            setLayoutTheme={setLayoutTheme}
+            padding={padding}
+            setPadding={setPadding}
+            watermarkAlign={watermarkAlign}
+            setWatermarkAlign={setWatermarkAlign}
+
             onExport={() => handleExport('download')}
             onCopyImage={() => handleExport('copy')}
             
-            // Pass Saving Props
             onSaveMarkdown={handleDownloadMarkdown}
             onExportZip={handleExportZip}
             isExportingZip={isExportingZip}
@@ -1256,7 +1126,6 @@ export default function App() {
             setFontSize={setFontSize}
             isDarkMode={isDarkMode}
             
-            // Pass ViewMode Props
             viewMode={viewMode}
             setViewMode={setViewMode}
           />
@@ -1273,7 +1142,8 @@ export default function App() {
                 <div 
                   ref={exportRef}
                   key={`export-container-${exportVersion}`}
-                  className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col p-4 sm:p-6 ${currentStyle.frame}`}
+                  // Updated: Use dynamic padding based on frame settings
+                  className={`w-full md:w-[75%] max-w-none transition-all duration-300 ease-in-out flex flex-col ${getFramePaddingClass(padding)} ${currentStyle.frame}`}
                 >
                   
                   <div className={`w-full ${currentStyle.card}`}>
@@ -1306,7 +1176,10 @@ export default function App() {
                        <div className={currentStyle.header}></div>
                     )}
                     
-                    <div className={`prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none [&>:last-child]:mb-0`}>
+                    {/* Content Container with fixed padding now, since outer frame handles variable width */}
+                    <div 
+                        className={`p-10 prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} ${getLayoutClass(layoutTheme)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none [&>:last-child]:mb-0`}
+                    >
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         urlTransform={(value) => value}
@@ -1320,7 +1193,7 @@ export default function App() {
                   </div>
   
                   {showWatermark && (
-                    <div className={`mt-6 text-right opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor}`}>
+                    <div className={`mt-6 opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor} ${watermarkAlign}`}>
                       {watermarkText || "人人智学社 rrzxs.com"}
                     </div>
                   )}
