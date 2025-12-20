@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -721,7 +722,7 @@ export default function App() {
           frame: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600", 
           card: "bg-transparent", 
           content: "bg-white/95 backdrop-blur-sm shadow-2xl rounded-xl min-h-[600px]",
-          prose: "prose-slate prose-lg",
+          prose: "prose-slate",
           header: "hidden",
           watermarkColor: "text-white/80"
         };
