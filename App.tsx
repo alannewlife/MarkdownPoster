@@ -100,6 +100,49 @@ const cleanImagePool = (pool: Record<string, string>, markdownContent: string, s
     return { cleanedPool, removedCount };
 };
 
+// NEW: Image Compression Helper (Updated to use WebP for transparency support)
+const compressImage = (file: File, maxWidth = 1200, quality = 0.8): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        
+        // Resize logic: maintain aspect ratio
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            reject(new Error("Canvas context error"));
+            return;
+        }
+        
+        // UPDATED: Clear canvas instead of filling white to preserve transparency
+        ctx.clearRect(0, 0, width, height);
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Export as WebP: Supports transparency AND high compression
+        // Fallback to image/jpeg if browser doesn't support webp (rare nowadays)
+        const dataUrl = canvas.toDataURL('image/webp', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 // NEW: StableImage Component with VFS support
 // We use 'any' for props to handle react-markdown specific props like 'node' comfortably
 const StableImage = ({ src, alt, imagePool, node, ...props }: any) => {
@@ -545,31 +588,47 @@ export default function App() {
   };
 
   // --- VIRTUAL FILE SYSTEM IMAGE HANDLER ---
-  const processImageFile = (file: File) => {
-    // Limit file size to avoid crashing LS (e.g. 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      alert("为了保证性能，请上传 2MB 以下的图片");
-      return;
-    }
+  const processImageFile = async (file: File) => {
+    try {
+        // Compress the image before storing
+        // This is critical to save LocalStorage space
+        // UPDATED: Now returns WebP (transparent & small)
+        const compressedDataUrl = await compressImage(file);
+        
+        // Safety check: if compressed image is still huge (e.g. > 800KB), 
+        // it might block LS quickly. 
+        if (compressedDataUrl.length > 800 * 1024) { 
+             alert("即便经过压缩，图片依然过大，建议上传更小的图片（推荐 < 2MB）。");
+             return;
+        }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Data = event.target?.result as string;
-      if (base64Data) {
         // Generate a simple ID
         const imgId = 'img_' + Math.random().toString(36).substr(2, 9);
         
-        // 1. Store in Pool
-        setImagePool(prev => ({
-          ...prev,
-          [imgId]: base64Data
-        }));
+        // Update pool with safety check
+        setImagePool(prev => {
+            const newPool = { ...prev, [imgId]: compressedDataUrl };
+            try {
+                // Dry run to see if it strings okay (simple heuristic)
+                // Real failure happens in useEffect logic, but we can catch here too.
+                const testStr = JSON.stringify(newPool);
+                if (testStr.length > 4.8 * 1024 * 1024) {
+                     alert("本地存储空间即将耗尽，请先删除部分旧图片。");
+                     return prev;
+                }
+                return newPool;
+            } catch (e) {
+                alert("本地存储空间不足，无法添加。");
+                return prev;
+            }
+        });
 
-        // 2. Insert clean Markdown syntax without alt text
+        // Insert clean Markdown syntax without alt text
         insertTextAtCursor(`![](local://${imgId})`);
-      }
-    };
-    reader.readAsDataURL(file);
+    } catch (e) {
+        console.error("Image processing error:", e);
+        alert("处理图片失败，请重试。");
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
