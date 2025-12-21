@@ -64,7 +64,6 @@ const STORAGE_KEY_WATERMARK_TEXT = 'markdown_poster_watermark_text';
 const STORAGE_KEY_WATERMARK_ALIGN = 'markdown_poster_watermark_align';
 const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
 const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; 
-const STORAGE_KEY_VIEW_MODE = 'markdown_poster_view_mode';
 const STORAGE_KEY_WECHAT_CONFIG = 'markdown_poster_wechat_config';
 
 // Max History Steps
@@ -82,7 +81,7 @@ export default function App() {
   // 2. Theme
   const [theme, setTheme] = useState<BorderTheme>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_THEME);
-    return (saved as BorderTheme) || BorderTheme.MacOS;
+    return (saved as BorderTheme) || BorderTheme.Minimal;
   });
 
   // 3. Layout Theme
@@ -133,10 +132,8 @@ export default function App() {
   });
 
   // 8. View Mode (Poster vs Writing vs WeChat)
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_VIEW_MODE);
-    return (saved as ViewMode) || ViewMode.Writing;
-  });
+  // Force default to Writing mode on entry, no persistence
+  const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Writing);
   
   // 9. WeChat Config
   const [weChatConfig, setWeChatConfig] = useState<WeChatConfig>(() => {
@@ -231,9 +228,7 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY_DARK_MODE, String(isDarkMode));
   }, [isDarkMode]);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode);
-  }, [viewMode]);
+  // ViewMode persistence removed to ensure it always starts in Reading (Writing) mode
   
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_WECHAT_CONFIG, JSON.stringify(weChatConfig));
