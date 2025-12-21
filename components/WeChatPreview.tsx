@@ -1,10 +1,15 @@
+
 import React, { useMemo, forwardRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { Highlight, themes } from 'prism-react-renderer';
 import { WeChatConfig, WeChatTheme, FontSize } from '../types';
 import { getWeChatFontSize, getWeChatLineHeight } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
+import { remarkRuby } from '../utils/markdownPlugins';
+import { RubyRender } from './RubyRender';
 
 interface WeChatPreviewProps {
   markdown: string;
@@ -151,6 +156,9 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
         
         text = text.replace(linkRegex, (match, prefix, linkText, url) => {
             if (url.startsWith('#')) return match; 
+            // Avoid footnote processing for Ruby links
+            if (url.startsWith('ruby:')) return match;
+
             linkCounter++;
             links.push(`${linkText}: ${url}`);
             return `${prefix}[${linkText}](${url})\`[${linkCounter}]\``;
@@ -428,7 +436,15 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
              </li>
          );
       },
-      a: ({node, children, href}: any) => <a href={href} style={themeStyle.link}>{children}</a>,
+      a: ({node, href, children}: any) => {
+        // Intercept Ruby links in WeChat preview too
+        if (href && href.startsWith('ruby:')) {
+            const reading = href.replace('ruby:', '');
+            const decodedReading = decodeURIComponent(reading);
+            return <RubyRender baseText={children} reading={decodedReading} style={{ fontSize: 'inherit', color: 'inherit' }} />;
+        }
+        return <a href={href} style={themeStyle.link}>{children}</a>;
+      },
       hr: ({node}: any) => <hr style={themeStyle.hr} />,
       
       table: ({node, children}: any) => (
@@ -495,7 +511,8 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
                         {/* Main Content */}
                         <div className="flex-1 px-4 pb-12 wechat-content">
                             <ReactMarkdown 
-                                remarkPlugins={[remarkGfm]}
+                                remarkPlugins={[remarkGfm, remarkMath, remarkRuby]}
+                                rehypePlugins={[rehypeKatex]}
                                 components={components}
                                 urlTransform={(value) => value} // IMPORTANT: Allow local:// protocol for StableImage
                             >

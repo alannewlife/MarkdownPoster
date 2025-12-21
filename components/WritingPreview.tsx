@@ -2,9 +2,13 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { FontSize } from '../types';
 import { getFontSizeClass } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
+import { remarkRuby } from '../utils/markdownPlugins';
+import { RubyRender } from './RubyRender';
 
 interface WritingPreviewProps {
   markdown: string;
@@ -37,10 +41,19 @@ export const WritingPreview: React.FC<WritingPreviewProps> = ({
        }`}>
           <div className={`prose max-w-none ${proseClass} ${getFontSizeClass(fontSize)}`}>
               <ReactMarkdown 
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={[remarkGfm, remarkMath, remarkRuby]}
+                rehypePlugins={[rehypeKatex]}
                 urlTransform={(value) => value}
                 components={{
-                  img: (props) => <StableImage {...props} imagePool={imagePool} />
+                  img: (props) => <StableImage {...props} imagePool={imagePool} />,
+                  a: ({ node, href, children, ...props }) => {
+                    if (href && href.startsWith('ruby:')) {
+                        const reading = href.replace('ruby:', '');
+                        const decodedReading = decodeURIComponent(reading);
+                        return <RubyRender baseText={children} reading={decodedReading} {...props} />;
+                    }
+                    return <a href={href} {...props}>{children}</a>;
+                  }
                 }}
               >
                 {markdown}

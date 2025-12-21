@@ -2,9 +2,13 @@
 import React, { useMemo, forwardRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { BorderTheme, LayoutTheme, FontSize, PaddingSize, WatermarkAlign } from '../types';
 import { getThemeStyles, getFontSizeClass, getLayoutClass, getFramePaddingClass } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
+import { remarkRuby } from '../utils/markdownPlugins';
+import { RubyRender } from './RubyRender';
 
 interface PosterPreviewProps {
   markdown: string;
@@ -85,10 +89,21 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
                   className={`p-10 prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} ${getLayoutClass(layoutTheme)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none [&>:last-child]:mb-0`}
               >
                 <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
+                  remarkPlugins={[remarkGfm, remarkMath, remarkRuby]}
+                  rehypePlugins={[rehypeKatex]}
                   urlTransform={(value) => value}
                   components={{
-                    img: (props) => <StableImage {...props} imagePool={imagePool} />
+                    img: (props) => <StableImage {...props} imagePool={imagePool} />,
+                    // Intercept Links to check for Ruby protocol
+                    a: ({ node, href, children, ...props }) => {
+                        if (href && href.startsWith('ruby:')) {
+                            const reading = href.replace('ruby:', '');
+                            // Decode URI component in case reading has special chars
+                            const decodedReading = decodeURIComponent(reading);
+                            return <RubyRender baseText={children} reading={decodedReading} {...props} />;
+                        }
+                        return <a href={href} {...props}>{children}</a>;
+                    }
                   }}
                 >
                   {markdown}

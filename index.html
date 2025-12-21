@@ -63,6 +63,9 @@
       3. JetBrains Mono (Vibrant/Code)
     -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans+Text|Noto+Serif:400,700|JetBrains+Mono:400,700" crossorigin="anonymous">
+    
+    <!-- KaTeX CSS for Math Formulas -->
+    <link rel="stylesheet" href="https://esm.sh/katex@0.16.9/dist/katex.min.css">
 
     <style>
       html {
@@ -137,6 +140,15 @@
       .dark input[type=range]::-webkit-slider-runnable-track {
         background: #3e4451;
       }
+      
+      /* Basic Ruby Styling */
+      ruby {
+        ruby-align: center;
+      }
+      rt {
+        font-size: 0.6em;
+        line-height: 1;
+      }
 
     </style>
   <script type="importmap">
@@ -148,6 +160,9 @@
     "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
     "remark-gfm": "https://esm.sh/remark-gfm@^4.0.1",
+    "remark-math": "https://esm.sh/remark-math@^6.0.0",
+    "rehype-katex": "https://esm.sh/rehype-katex@^7.0.0",
+    "unist-util-visit": "https://esm.sh/unist-util-visit@^5.0.0",
     "html-to-image": "https://esm.sh/html-to-image@1.11.11",
     "jszip": "https://esm.sh/jszip@3.10.1",
     "file-saver": "https://esm.sh/file-saver@2.0.5",
