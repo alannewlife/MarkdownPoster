@@ -1,4 +1,9 @@
 
+
+
+
+
+
 export enum BorderTheme {
   Minimal = 'Minimal',
   MacOS = 'MacOS',
@@ -40,7 +45,8 @@ export enum WatermarkAlign {
 
 export enum ViewMode {
   Poster = 'Poster',
-  Writing = 'Writing'
+  Writing = 'Writing',
+  WeChat = 'WeChat'
 }
 
 export interface BorderStyleConfig {
@@ -50,6 +56,26 @@ export interface BorderStyleConfig {
   content: string;    // The inner content background and text color
   prose: string;      // Typography prose settings (e.g. prose-invert)
   watermarkColor: string; // Color of the watermark text on the frame
+}
+
+export enum WeChatTheme {
+  Default = 'Default',
+  Lovely = 'Lovely',
+  Tech = 'Tech',
+  Simple = 'Simple'
+}
+
+export interface WeChatConfig {
+  theme: WeChatTheme; // Visual theme for WeChat
+  codeTheme: string;      // e.g., 'dracula', 'github', 'vsDark', 'vsLight'
+  macCodeBlock: boolean;
+  lineNumbers: boolean;
+  linkReferences: boolean; // Convert external links to footnotes
+  indent: boolean;        // 2em indent
+  justify: boolean;       // text-align: justify
+  captionType: 'title' | 'alt' | 'none';
+  fontSize: FontSize; // Changed to Enum for S/M/L
+  lineHeight: 'compact' | 'comfortable'; // New line height setting
 }
 
 export enum AiAction {

@@ -5,7 +5,8 @@ import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
 import { PosterPreview } from './components/PosterPreview';
 import { WritingPreview } from './components/WritingPreview';
-import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign } from './types';
+import { WeChatPreview } from './components/WeChatPreview';
+import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig, WeChatTheme } from './types';
 import { cleanImagePool, compressImage, dataURItoBlob, getExtensionFromMime, getCorsFriendlyUrl } from './utils/imageUtils';
 
 // @ts-ignore
@@ -15,7 +16,7 @@ import FileSaver from 'file-saver';
 
 const DEFAULT_MARKDOWN = `# Markdown 海报生成器
 
-![](https://picsum.photos/600/300)
+![这是一张风景图片](https://picsum.photos/600/300 "这里是图片的标题说明")
 
 \`Markdown Poster\` 是一个工具，让你用 Markdown 制作优雅的图文海报。 ✨
 
@@ -64,6 +65,7 @@ const STORAGE_KEY_WATERMARK_ALIGN = 'markdown_poster_watermark_align';
 const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
 const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; 
 const STORAGE_KEY_VIEW_MODE = 'markdown_poster_view_mode';
+const STORAGE_KEY_WECHAT_CONFIG = 'markdown_poster_wechat_config';
 
 // Max History Steps
 const MAX_HISTORY_SIZE = 10;
@@ -130,13 +132,48 @@ export default function App() {
     return false;
   });
 
-  // 8. View Mode (Poster vs Writing)
+  // 8. View Mode (Poster vs Writing vs WeChat)
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_VIEW_MODE);
-    return (saved as ViewMode) || ViewMode.Poster;
+    return (saved as ViewMode) || ViewMode.Writing;
+  });
+  
+  // 9. WeChat Config
+  const [weChatConfig, setWeChatConfig] = useState<WeChatConfig>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_WECHAT_CONFIG);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Migration: Ensure new properties exist and handle old format
+      return {
+          theme: WeChatTheme.Default,
+          codeTheme: 'vsDark',
+          macCodeBlock: true,
+          lineNumbers: true,
+          linkReferences: true,
+          indent: false,
+          justify: true,
+          captionType: 'title',
+          lineHeight: 'comfortable',
+          ...parsed,
+          // Force overwrite old string fontSizes if present in ...parsed
+          fontSize: (Object.values(FontSize).includes(parsed.fontSize)) ? parsed.fontSize : FontSize.Medium
+      };
+    }
+    return {
+      theme: WeChatTheme.Default,
+      codeTheme: 'vsDark',
+      macCodeBlock: true,
+      lineNumbers: true,
+      linkReferences: true,
+      indent: false,
+      justify: true,
+      captionType: 'title',
+      fontSize: FontSize.Medium,
+      lineHeight: 'comfortable'
+    };
   });
 
-  // 9. Image Pool (Virtual File System)
+  // 10. Image Pool (Virtual File System)
   const [imagePool, setImagePool] = useState<Record<string, string>>(() => {
     try {
       const savedPoolStr = localStorage.getItem(STORAGE_KEY_IMAGE_POOL);
@@ -197,6 +234,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode);
   }, [viewMode]);
+  
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_WECHAT_CONFIG, JSON.stringify(weChatConfig));
+  }, [weChatConfig]);
 
   useEffect(() => {
     try {
@@ -216,6 +257,7 @@ export default function App() {
   
   // Passed to PosterPreview via ref to capture the DOM
   const exportRef = useRef<HTMLDivElement>(null);
+  const weChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // --- HISTORY / UNDO SYSTEM ---
@@ -527,6 +569,42 @@ export default function App() {
     setExportVersion(v => v + 1);
   };
 
+  // Helper for Copy HTML (WeChat Mode)
+  const handleCopyHtml = async () => {
+    if (weChatRef.current) {
+        try {
+            // Select the content content-editable div or just the wrapper
+            // For WeChat, we usually want to copy the innerHTML of the prose container
+            // We need to find the specific content container inside weChatRef
+            const contentNode = weChatRef.current.querySelector('.wechat-content');
+            if (!contentNode) return;
+
+            // We need to ensure inline styles are computed if not already present, 
+            // but typical React rendering puts styles on elements or classes. 
+            // WeChat editors respect inline styles better.
+            // For now, let's try copying the clipboard HTML directly.
+            
+            const htmlContent = contentNode.innerHTML;
+            
+            // Create a ClipboardItem with text/html
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const textBlob = new Blob([contentNode.textContent || ''], { type: 'text/plain' });
+            
+            await navigator.clipboard.write([
+                new ClipboardItem({
+                    'text/html': blob,
+                    'text/plain': textBlob
+                })
+            ]);
+            
+            alert("已复制公众号格式到剪贴板！请直接在微信编辑器中粘贴。");
+        } catch (e) {
+            console.error("Copy HTML failed", e);
+            alert("复制失败，请重试。");
+        }
+    }
+  };
+
   // NEW: Handle Zip Export
   const handleExportZip = async () => {
     if (isExportingZip) return;
@@ -804,6 +882,10 @@ export default function App() {
             
             viewMode={viewMode}
             setViewMode={setViewMode}
+            
+            weChatConfig={weChatConfig}
+            setWeChatConfig={setWeChatConfig}
+            onCopyWeChatHtml={handleCopyHtml}
           />
           
           <div className="relative flex-1 min-h-0 overflow-hidden">
@@ -829,6 +911,16 @@ export default function App() {
                visible={viewMode === ViewMode.Writing}
                markdown={markdown}
                fontSize={fontSize}
+               imagePool={imagePool}
+               isDarkMode={isDarkMode}
+            />
+
+            {/* --- WECHAT MODE RENDER --- */}
+            <WeChatPreview
+               ref={weChatRef}
+               visible={viewMode === ViewMode.WeChat}
+               markdown={markdown}
+               config={weChatConfig}
                imagePool={imagePool}
                isDarkMode={isDarkMode}
             />

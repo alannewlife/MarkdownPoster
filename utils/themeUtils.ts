@@ -97,6 +97,7 @@ export const getThemeStyles = (themeName: BorderTheme): BorderStyleConfig => {
     }
 };
 
+// Poster Mode: Font Size (Tailwind Classes)
 export const getFontSizeClass = (size: FontSize) => {
     switch (size) {
       case FontSize.Small: return 'prose-sm';
@@ -105,6 +106,7 @@ export const getFontSizeClass = (size: FontSize) => {
     }
 };
 
+// Poster Mode: Layout
 export const getLayoutClass = (layout: LayoutTheme) => {
     switch (layout) {
       case LayoutTheme.Classic:
@@ -118,10 +120,29 @@ export const getLayoutClass = (layout: LayoutTheme) => {
     }
 };
 
+// Poster Mode: Padding
 export const getFramePaddingClass = (val: PaddingSize) => {
     switch (val) {
         case PaddingSize.Narrow: return 'p-4 sm:p-6';
         case PaddingSize.Wide: return 'p-8 sm:p-16';
         case PaddingSize.Medium: default: return 'p-6 sm:p-10';
+    }
+};
+
+// WeChat Mode: Font Size (Pixels)
+export const getWeChatFontSize = (size: FontSize): string => {
+    switch (size) {
+        case FontSize.Small: return '14px';
+        case FontSize.Large: return '16px';
+        case FontSize.Medium: default: return '15px';
+    }
+};
+
+// WeChat Mode: Line Height (Unitless)
+export const getWeChatLineHeight = (lineHeightType: string): string => {
+    switch (lineHeightType) {
+        case 'compact': return '1.5';     // Tighter (Standard Web)
+        case 'comfortable': return '2.2'; // Much looser (Aesthetic/Blog style)
+        default: return '1.75';
     }
 };
