@@ -1,4 +1,3 @@
-
 import React, { useMemo, forwardRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -28,53 +27,63 @@ const getPrismTheme = (themeName: string) => {
     }
 };
 
-// WeChat Theme Style Definitions
+// --- INLINE STYLE DEFINITIONS ---
+// WeChat editor removes classNames, so we must use explicit style objects.
+
 const getThemeStyles = (theme: WeChatTheme) => {
+    const commonHeader = { fontWeight: 'bold', marginTop: '1.5em', marginBottom: '1em', lineHeight: '1.4' };
+    const commonBlockquote = { 
+        paddingLeft: '1em',
+        paddingRight: '1em',
+        paddingTop: '1em', 
+        paddingBottom: '1em', 
+        margin: '1.5em 0',
+        fontSize: '0.95em',
+        borderRadius: '4px'
+    };
+
     switch(theme) {
         case WeChatTheme.Lovely:
             return {
-                h1: 'border-b-2 border-pink-300 text-pink-500',
-                h2: 'border-l-4 border-pink-400 pl-3 text-pink-600 bg-pink-50 py-1 rounded-r',
-                h3: 'text-pink-500 before:content-["♥"] before:mr-2 before:text-pink-300',
-                list: 'text-pink-500',
-                blockquote: 'border-l-4 border-pink-300 bg-pink-50 text-gray-600',
-                link: 'text-pink-500 border-b border-pink-300',
-                image: 'rounded-xl shadow-lg border-4 border-pink-100',
-                hr: 'border-pink-200 border-dashed',
+                h1: { ...commonHeader, borderBottom: '2px solid #f9a8d4', color: '#ec4899', paddingBottom: '0.5em', textAlign: 'center' as const }, 
+                h2: { ...commonHeader, borderLeft: '4px solid #f472b6', paddingLeft: '0.5em', color: '#db2777', backgroundColor: '#fdf2f8', paddingRight: '0.5em', paddingTop: '0.2em', paddingBottom: '0.2em', borderRadius: '0 4px 4px 0', display: 'inline-block' }, 
+                h3: { ...commonHeader, color: '#ec4899' },
+                list: { color: '#ec4899' },
+                blockquote: { ...commonBlockquote, borderLeft: '4px solid #f9a8d4', backgroundColor: '#fdf2f8', color: '#4b5563' },
+                link: { color: '#ec4899', borderBottom: '1px solid #f9a8d4', textDecoration: 'none' },
+                hr: { border: '0', borderTop: '2px dashed #fbcfe8', margin: '2em 0' },
             };
         case WeChatTheme.Tech:
             return {
-                h1: 'text-center border-b-2 border-blue-600 pb-2 text-blue-800',
-                h2: 'bg-gradient-to-r from-blue-600 to-blue-400 text-white px-4 py-1 rounded-sm shadow-md inline-block',
-                h3: 'text-blue-700 border-l-4 border-blue-600 pl-2',
-                list: 'text-blue-600',
-                blockquote: 'bg-slate-800 text-slate-300 border-l-4 border-blue-500 rounded',
-                link: 'text-blue-600 font-bold',
-                image: 'rounded shadow-2xl border border-gray-200',
-                hr: 'border-blue-200',
+                h1: { ...commonHeader, textAlign: 'center' as const, borderBottom: '2px solid #2563eb', paddingBottom: '0.5em', color: '#1e40af' }, 
+                h2: { ...commonHeader, background: 'linear-gradient(90deg, #2563eb, #60a5fa)', color: 'white', padding: '0.2em 1em', borderRadius: '4px', display: 'inline-block', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' },
+                h3: { ...commonHeader, color: '#1d4ed8', borderLeft: '4px solid #2563eb', paddingLeft: '0.5em' },
+                list: { color: '#2563eb' },
+                // Updated Tech Blockquote: Light blue background, dark slate text
+                blockquote: { ...commonBlockquote, backgroundColor: '#eff6ff', color: '#334155', borderLeft: '4px solid #3b82f6' }, 
+                link: { color: '#2563eb', fontWeight: 'bold', textDecoration: 'none' },
+                hr: { border: '0', borderTop: '1px solid #bfdbfe', margin: '2em 0' },
             };
         case WeChatTheme.Simple:
             return {
-                h1: 'text-center text-gray-800 font-black tracking-widest border-b-2 border-black pb-4',
-                h2: 'text-center text-gray-900 border-y border-gray-200 py-2 font-bold',
-                h3: 'font-bold text-gray-800',
-                list: 'text-black',
-                blockquote: 'border-l-2 border-black pl-4 italic text-gray-600 font-serif',
-                link: 'text-gray-800 underline decoration-1 underline-offset-4',
-                image: 'grayscale hover:grayscale-0 transition-all duration-500',
-                hr: 'border-gray-900',
+                h1: { ...commonHeader, textAlign: 'center' as const, color: '#1f2937', letterSpacing: '0.2em', borderBottom: '2px solid #000', paddingBottom: '1em' },
+                h2: { ...commonHeader, textAlign: 'center' as const, color: '#111827', borderTop: '1px solid #e5e5e5', borderBottom: '1px solid #e5e5e5', padding: '0.5em 0' },
+                h3: { ...commonHeader, color: '#1f2937' },
+                list: { color: '#000' },
+                blockquote: { ...commonBlockquote, borderLeft: '3px solid #000', fontStyle: 'italic', color: '#4b5563', backgroundColor: 'transparent' },
+                link: { color: '#1f2937', textDecoration: 'underline', textUnderlineOffset: '4px' },
+                hr: { border: '0', borderTop: '1px solid #111827', margin: '2em 0' },
             };
         case WeChatTheme.Default:
         default:
             return {
-                h1: 'border-b pb-2 border-gray-200',
-                h2: 'border-l-4 border-[#07c160] pl-3 text-[#07c160]',
-                h3: 'text-[#07c160] font-bold',
-                list: 'text-[#07c160]',
-                blockquote: 'border-l-4 border-gray-300 bg-gray-50 text-gray-500 rounded-r',
-                link: 'text-[#576b95]',
-                image: 'rounded-lg',
-                hr: 'border-gray-200',
+                h1: { ...commonHeader, borderBottom: '1px solid #e5e5e5', paddingBottom: '0.5em' },
+                h2: { ...commonHeader, borderLeft: '4px solid #07c160', paddingLeft: '0.5em', color: '#07c160' },
+                h3: { ...commonHeader, color: '#07c160' },
+                list: { color: '#07c160' },
+                blockquote: { ...commonBlockquote, borderLeft: '4px solid #d1d5db', backgroundColor: '#f9fafb', color: '#6b7280' },
+                link: { color: '#576b95', textDecoration: 'none' },
+                hr: { border: '0', borderTop: '1px solid #e5e5e5', margin: '2em 0' },
             };
     }
 };
@@ -101,7 +110,6 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
   
   // Font sizes for Headings (scaled)
   const headingSizes = useMemo(() => {
-      // Scale factors: H1: 1.6x, H2: 1.4x, H3: 1.2x
       const base = parseInt(baseFontSize.replace('px', ''), 10);
       return {
           h1: `${Math.round(base * 1.6)}px`,
@@ -114,7 +122,11 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
   const commonTextStyle = {
       fontSize: baseFontSize,
       lineHeight: lineHeightValue,
-      letterSpacing: '0.05em'
+      letterSpacing: '0.05em',
+      color: '#333333',
+      textAlign: (config.justify ? 'justify' : 'left') as any,
+      maxWidth: '100%',
+      boxSizing: 'border-box' as const
   };
 
   // 1. Process Markdown for Footnotes & Header Info
@@ -126,7 +138,6 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
      const titleMatch = text.match(/^#\s+(.*$)/m);
      if (titleMatch) {
          extractedTitle = titleMatch[1];
-         // Remove Title (H1) from the body text so it doesn't appear twice
          text = text.replace(/^#\s+(.*$)\n?/m, '');
      } else {
          extractedTitle = "无标题";
@@ -142,8 +153,6 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
             if (url.startsWith('#')) return match; 
             linkCounter++;
             links.push(`${linkText}: ${url}`);
-            // Use inline code syntax `[n]` which we will intercept in the custom code renderer
-            // to render as a superscript. This avoids needing rehype-raw for HTML tags.
             return `${prefix}[${linkText}](${url})\`[${linkCounter}]\``;
         });
      }
@@ -162,60 +171,138 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
 
   // 2. Custom Renderers
   const components = useMemo(() => ({
-      // Handle Blocks: 'pre' is only used for code blocks in Markdown
+      // Custom Checkbox for Task Lists
+      input: ({ type, checked }: any) => {
+        if (type !== 'checkbox') return null;
+        return (
+            <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '1.2em',
+                height: '1.2em',
+                marginRight: '0.4em',
+                transform: 'translateY(0.1em)',
+                flexShrink: 0,
+                verticalAlign: 'middle'
+            }}>
+                {checked ? (
+                    <svg viewBox="0 0 24 24" fill="none" style={{width: '100%', height: '100%'}}>
+                       <rect x="2" y="2" width="20" height="20" rx="4" fill="#d1d5db" />
+                       <path d="M7 12l3 3l7-7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                ) : (
+                    <svg viewBox="0 0 24 24" fill="none" style={{width: '100%', height: '100%'}}>
+                       <rect x="2" y="2" width="20" height="20" rx="4" stroke="#d1d5db" strokeWidth="2" fill="transparent" />
+                    </svg>
+                )}
+            </span>
+        );
+      },
+
       pre: ({ children }: any) => {
-          // Extract data from the child 'code' element
           const codeElement = children as React.ReactElement<any>;
-          // Safety: ensure it is a React Element
           if (!React.isValidElement(codeElement)) return <pre>{children}</pre>;
 
           const props = codeElement.props as { className?: string; children?: React.ReactNode };
           const className = props?.className || '';
           const codeContent = String(props?.children || '').replace(/\n$/, '');
           const match = /language-(\w+)/.exec(className);
+          const prismTheme = getPrismTheme(config.codeTheme);
 
+          // Determine if theme is dark for header styling
+          const isDarkTheme = ['vsDark', 'dracula', 'nightOwl', 'oceanicNext'].includes(config.codeTheme);
+          
+          // Get background from theme or fallback
+          const themeBg = prismTheme.plain.backgroundColor || (isDarkTheme ? '#1e1e1e' : '#f6f8fa');
+          const themeColor = prismTheme.plain.color || (isDarkTheme ? '#d4d4d4' : '#24292e');
+
+          // Use <section> for WeChat compatibility (preserves styles better than div)
           return (
-             <div className="my-4 rounded-lg overflow-hidden shadow-sm text-sm bg-opacity-50" style={{ border: '1px solid rgba(0,0,0,0.06)' }}>
+             <section style={{ 
+                 margin: '1.5em 0', 
+                 borderRadius: '8px', 
+                 boxShadow: '0 0 0 1px rgba(0,0,0,0.03)', 
+                 overflow: 'hidden', 
+                 fontSize: '13px', 
+                 lineHeight: '1.6',
+                 backgroundColor: themeBg, // Applied Theme Background
+                 color: themeColor,
+                 maxWidth: '100%',
+                 position: 'relative' // For positioning
+             }}>
                 {config.macCodeBlock && (
-                    <div className="flex items-center gap-1.5 px-3 py-2 bg-[#f6f6f6] border-b border-[#e5e5e5]">
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></div>
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></div>
-                        <div className="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></div>
-                    </div>
+                    <section style={{
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '6px', 
+                        padding: '12px 16px', 
+                        // Adapt header background: translucent on dark, solid light gray on light
+                        backgroundColor: isDarkTheme ? 'rgba(255, 255, 255, 0.03)' : '#e6e8eb', 
+                        borderBottom: isDarkTheme ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid #dce0e3'
+                    }}>
+                        <span style={{width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ff5f56', display: 'inline-block'}}></span>
+                        <span style={{width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ffbd2e', display: 'inline-block'}}></span>
+                        <span style={{width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#27c93f', display: 'inline-block'}}></span>
+                    </section>
                 )}
-                <Highlight
-                    theme={getPrismTheme(config.codeTheme)}
-                    code={codeContent}
-                    language={match ? match[1] : 'text'}
-                >
-                    {({ className, style, tokens, getLineProps, getTokenProps }) => (
-                    <pre className={`${className} p-4 overflow-x-auto`} style={{ ...style, margin: 0, fontFamily: '"JetBrains Mono", Consolas, monospace' }}>
-                        {tokens.map((line, i) => (
-                        <div key={i} {...getLineProps({ line })} className="table-row">
-                            {config.lineNumbers && (
-                                <span className="table-cell select-none opacity-30 text-right pr-4 w-8">{i + 1}</span>
-                            )}
-                            <span className="table-cell">
-                                {line.map((token, key) => (
-                                    <span key={key} {...getTokenProps({ token })} />
-                                ))}
-                            </span>
-                        </div>
-                        ))}
-                    </pre>
-                    )}
-                </Highlight>
-             </div>
+                <div style={{
+                    padding: '16px',
+                    overflowX: 'auto',
+                    WebkitOverflowScrolling: 'touch'
+                }}>
+                    <Highlight
+                        theme={prismTheme}
+                        code={codeContent}
+                        language={match ? match[1] : 'text'}
+                    >
+                        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                        <pre className={className} style={{ 
+                            ...style, 
+                            margin: 0, 
+                            padding: 0, 
+                            fontFamily: '"Operator Mono", "JetBrains Mono", Consolas, Monaco, Menlo, monospace',
+                            backgroundColor: 'transparent', // Important: Let wrapper handle BG
+                            float: 'left', 
+                            minWidth: '100%',
+                        }}>
+                            {tokens.map((line, i) => (
+                            <div key={i} {...getLineProps({ line })} style={{display: 'block', whiteSpace: 'pre'}}>
+                                {config.lineNumbers && (
+                                    <span style={{
+                                        display: 'inline-block', 
+                                        userSelect: 'none', 
+                                        opacity: 0.4, 
+                                        textAlign: 'right', 
+                                        width: '2.5em', 
+                                        paddingRight: '1em',
+                                        marginRight: '0.5em',
+                                        borderRight: isDarkTheme ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
+                                    }}>
+                                        {i + 1}
+                                    </span>
+                                )}
+                                <span style={{display: 'inline-block'}}>
+                                    {line.map((token, key) => (
+                                        <span key={key} {...getTokenProps({ token })} />
+                                    ))}
+                                </span>
+                            </div>
+                            ))}
+                        </pre>
+                        )}
+                    </Highlight>
+                    <div style={{clear: 'both'}}></div>
+                </div>
+             </section>
           );
       },
 
-      // Handle Inline: 'code' is triggered for both
       code({ node, className, children, ...props }: any) {
         const content = String(children || '');
-        // Intercept our special footnote markers `[1]` and render as superscript
         if (/^\[\d+\]$/.test(content)) {
             return (
-                <sup className="text-[0.65rem] text-gray-400 font-normal ml-0.5 select-none" style={{ verticalAlign: 'super' }}>
+                <sup style={{ fontSize: '0.7em', color: '#9ca3af', marginLeft: '2px', verticalAlign: 'super' }}>
                     {children}
                 </sup>
             );
@@ -223,10 +310,17 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
 
         return (
             <code 
-              className="mx-1 px-1.5 py-0.5 rounded-md font-semibold font-mono text-[0.9em] break-words" 
               style={{ 
-                  backgroundColor: 'rgba(135, 131, 120, 0.15)',
-                  color: 'inherit',
+                  margin: '0 4px',
+                  padding: '2px 4px',
+                  borderRadius: '4px',
+                  fontFamily: 'Monaco, Consolas, monospace',
+                  fontSize: '0.9em',
+                  fontWeight: '600',
+                  // Updated Inline Code Style: Neutral gray background and dark gray text
+                  backgroundColor: '#f3f4f6', // gray-100
+                  color: '#1f2937',           // gray-800
+                  ...props.style
               }}
               {...props}
             >
@@ -237,78 +331,123 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
 
       img: ({ node, ...props }: any) => {
           let caption = "";
-          // Determine caption based on configuration
-          if (config.captionType === 'title' && props.title) {
-              caption = props.title;
-          } else if (config.captionType === 'alt' && props.alt) {
-              caption = props.alt;
-          }
+          if (config.captionType === 'title' && props.title) caption = props.title;
+          else if (config.captionType === 'alt' && props.alt) caption = props.alt;
           
           return (
-              <span className="block my-6 text-center group">
-                  <span className={`block mx-auto max-w-full overflow-hidden ${themeStyle.image}`}>
-                    <StableImage {...props} imagePool={imagePool} className="max-w-full h-auto mx-auto block" />
+              <section style={{display: 'block', margin: '1.5em 0', textAlign: 'center'}}>
+                  <span style={{display: 'block', maxWidth: '100%', overflow: 'hidden', borderRadius: '6px'}}>
+                    {/* The StableImage component now handles data-id passing */}
+                    <StableImage {...props} imagePool={imagePool} style={{maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto', borderRadius: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)'}} />
                   </span>
                   {caption && (
-                      <span className="block mt-2 text-[14px] text-[#888] font-normal tracking-wide leading-normal">
+                      <span style={{display: 'block', marginTop: '0.6em', fontSize: '13px', color: '#888', lineHeight: '1.4'}}>
                           {caption}
                       </span>
                   )}
-              </span>
+              </section>
           );
       },
-      p: ({node, children}: any) => {
+      p: ({node, children, ...props}: any) => {
           return (
               <p 
-                 className={`mb-4 text-[#3f3f3f] ${config.justify ? 'text-justify' : ''} ${config.indent ? 'indent-[2em]' : ''}`} 
                  style={{ 
                      ...commonTextStyle,
-                     margin: '0 0 1.5em 0', // 20px spacing between paragraphs
+                     marginBottom: '1.5em',
+                     textIndent: config.indent ? '2em' : '0',
+                     minHeight: '1em', // Prevents empty P collapse
+                     ...(props.style || {}) // Merge external styles (important for Blockquote last-child override)
                  }}
               >
                   {children}
               </p>
           );
       },
-      h1: ({node, children}: any) => <h1 style={{fontSize: headingSizes.h1, lineHeight: lineHeightValue}} className={`font-bold mt-8 mb-6 ${themeStyle.h1}`}>{children}</h1>,
-      h2: ({node, children}: any) => <h2 style={{fontSize: headingSizes.h2, lineHeight: lineHeightValue}} className={`font-bold mt-8 mb-6 flex items-center ${themeStyle.h2}`}>{children}</h2>,
-      h3: ({node, children}: any) => <h3 style={{fontSize: headingSizes.h3, lineHeight: lineHeightValue}} className={`font-bold mt-6 mb-4 ${themeStyle.h3}`}>{children}</h3>,
-      blockquote: ({node, children}: any) => (
-          <blockquote className={`pl-4 py-2 my-4 ${themeStyle.blockquote}`} style={commonTextStyle}>
-              {children}
-          </blockquote>
-      ),
-      ul: ({node, children}: any) => <ul className="list-disc pl-5 mb-4 space-y-1 marker:text-gray-300">{children}</ul>,
-      ol: ({node, children}: any) => <ol className="list-decimal pl-5 mb-4 space-y-1 marker:text-gray-400">{children}</ol>,
-      li: ({node, children}: any) => (
-         <li 
-            className="text-[#3f3f3f]"
-            style={commonTextStyle}
-         >
-            {children}
-         </li>
-      ),
-      a: ({node, children, href}: any) => <a href={href} className={`${themeStyle.link} break-all hover:opacity-80 transition-opacity`}>{children}</a>,
-      hr: ({node}: any) => <hr className={`my-8 border-t-2 ${themeStyle.hr}`} />,
+      h1: ({node, children}: any) => <h1 style={{...themeStyle.h1, fontSize: headingSizes.h1}}>{children}</h1>,
+      h2: ({node, children}: any) => <h2 style={{...themeStyle.h2, fontSize: headingSizes.h2}}>{children}</h2>,
+      h3: ({node, children}: any) => <h3 style={{...themeStyle.h3, fontSize: headingSizes.h3}}>{children}</h3>,
+      blockquote: ({node, children}: any) => {
+          // Flatten children to handle cases where react-markdown returns mixed arrays of text and elements
+          const childrenArray = React.Children.toArray(children);
+          
+          // Find the index of the last valid React element (ignoring text nodes/whitespace)
+          // This ensures we target the actual last paragraph or element
+          let lastElementIndex = -1;
+          for (let i = childrenArray.length - 1; i >= 0; i--) {
+              if (React.isValidElement(childrenArray[i])) {
+                  lastElementIndex = i;
+                  break;
+              }
+          }
+
+          return (
+            <section style={{...themeStyle.blockquote, ...commonTextStyle}}>
+                {childrenArray.map((child, index) => {
+                        // Apply margin-bottom: 0 only to the last valid element
+                        if (index === lastElementIndex && React.isValidElement(child)) {
+                            const element = child as React.ReactElement<any>;
+                            return React.cloneElement(element, {
+                                style: {
+                                    ...(element.props.style || {}),
+                                    marginBottom: 0
+                                }
+                            });
+                        }
+                        return child;
+                })}
+            </section>
+          );
+      },
+      ul: ({node, className, children}: any) => {
+        // Detect task list (Gfm)
+        const isTaskList = className?.includes('contains-task-list');
+        return (
+            <ul style={{
+                paddingLeft: isTaskList ? '0' : '1.5em', 
+                marginBottom: '1.5em', 
+                listStyleType: isTaskList ? 'none' : 'disc', 
+                color: (themeStyle.list as any).color
+            }}>
+                {children}
+            </ul>
+        );
+      },
+      ol: ({node, children}: any) => <ol style={{paddingLeft: '1.5em', marginBottom: '1.5em', listStyleType: 'decimal', color: (themeStyle.list as any).color}}>{children}</ol>,
+      li: ({node, className, children}: any) => {
+         const isTaskList = className?.includes('task-list-item');
+         return (
+             <li style={{
+                ...commonTextStyle, 
+                marginBottom: '0.2em', 
+                paddingLeft: isTaskList ? '0' : '0.2em',
+                listStyleType: isTaskList ? 'none' : 'inherit',
+                display: isTaskList ? 'flex' : 'list-item', // Use Flex for task list to align checkbox
+                alignItems: isTaskList ? 'flex-start' : undefined
+             }}>
+                {children}
+             </li>
+         );
+      },
+      a: ({node, children, href}: any) => <a href={href} style={themeStyle.link}>{children}</a>,
+      hr: ({node}: any) => <hr style={themeStyle.hr} />,
       
-      // Table Support
       table: ({node, children}: any) => (
-         <div className="overflow-x-auto my-6">
-            <table className="min-w-full border-collapse border border-gray-200" style={{fontSize: baseFontSize, lineHeight: lineHeightValue}}>
+         <section style={{overflowX: 'auto', margin: '1.5em 0', borderRadius: '4px', border: '1px solid #e5e7eb'}}>
+            <table style={{minWidth: '100%', borderCollapse: 'collapse', fontSize: '14px', lineHeight: '1.5'}}>
               {children}
             </table>
-         </div>
+         </section>
       ),
-      thead: ({node, children}: any) => <thead className="bg-gray-50">{children}</thead>,
+      thead: ({node, children}: any) => <thead style={{backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb'}}>{children}</thead>,
       tbody: ({node, children}: any) => <tbody>{children}</tbody>,
-      tr: ({node, children}: any) => <tr className="border-b border-gray-200 last:border-0">{children}</tr>,
+      tr: ({node, children}: any) => <tr style={{borderBottom: '1px solid #e5e7eb'}}>{children}</tr>,
       th: ({node, children}: any) => (
-          <th className="px-4 py-2 text-left font-bold text-gray-700 border-r border-gray-200 last:border-0 whitespace-nowrap">
+          <th style={{padding: '0.75em 1em', textAlign: 'left', fontWeight: 'bold', color: '#374151', borderRight: '1px solid #e5e7eb', whiteSpace: 'nowrap'}}>
             {children}
           </th>
       ),
       td: ({node, children}: any) => (
-          <td className="px-4 py-2 text-gray-600 border-r border-gray-200 last:border-0 align-top">
+          <td style={{padding: '0.75em 1em', color: '#4b5563', borderRight: '1px solid #e5e7eb', verticalAlign: 'top'}}>
              {children}
           </td>
       )
@@ -320,35 +459,35 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
             visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}>
             
-            {/* Simulation Phone Frame - Subtle & Aesthetic */}
+            {/* Simulation Phone Frame */}
             <div className={`relative flex flex-col items-center rounded-[3rem] p-3 shadow-2xl border transition-colors duration-500
                  ${isDarkMode 
                     ? 'bg-[#2c313a] border-[#3e4451] shadow-black/50' 
                     : 'bg-white border-gray-200 shadow-xl'
                  }
             `}> 
-                {/* Screen Wrapper with Border (Glass edge simulation) */}
+                {/* Screen Wrapper */}
                 <div className={`relative overflow-hidden rounded-[2.5rem] border-[4px] ${isDarkMode ? 'border-[#1a1d23]' : 'border-gray-50'}`}>
                     
-                    {/* Notch Hint - Very subtle */}
+                    {/* Notch */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
                          <div className={`w-36 h-6 rounded-b-2xl shadow-sm ${isDarkMode ? 'bg-[#1a1d23]' : 'bg-gray-100'}`}></div>
                     </div>
 
-                    {/* Simulation Phone Content Container */}
+                    {/* Content Container */}
                     <div 
                         className="w-[375px] md:w-[414px] bg-white min-h-[800px] relative flex flex-col"
                         ref={ref}
                     >   
-                        {/* WeChat Header */}
+                        {/* Header */}
                         <div className="px-5 pt-12 pb-2">
-                            <h1 className="text-[22px] font-bold leading-[1.4] text-[#333] mb-3 tracking-wide">
+                            <h1 style={{fontSize: '22px', fontWeight: 'bold', lineHeight: '1.4', color: '#333', marginBottom: '0.75em', letterSpacing: '0.025em'}}>
                                 {headerInfo.title}
                             </h1>
-                            <div className="flex items-center text-[14px] text-[rgba(0,0,0,0.4)] mb-6">
-                                <span className="mr-2.5">原创</span>
-                                <span className="mr-2.5 text-[#576b95] font-medium tracking-wide">{headerInfo.author}</span>
-                                <span className="mr-2.5 text-[#576b95] tracking-wide">{headerInfo.account}</span>
+                            <div style={{display: 'flex', alignItems: 'center', fontSize: '14px', color: 'rgba(0,0,0,0.4)', marginBottom: '1.5em'}}>
+                                <span style={{marginRight: '10px'}}>原创</span>
+                                <span style={{marginRight: '10px', color: '#576b95', fontWeight: '500'}}>{headerInfo.author}</span>
+                                <span style={{marginRight: '10px', color: '#576b95'}}>{headerInfo.account}</span>
                                 <span>{headerInfo.date}</span>
                             </div>
                         </div>
@@ -358,18 +497,19 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
                             <ReactMarkdown 
                                 remarkPlugins={[remarkGfm]}
                                 components={components}
+                                urlTransform={(value) => value} // IMPORTANT: Allow local:// protocol for StableImage
                             >
                                 {processedMarkdown}
                             </ReactMarkdown>
 
-                            {/* Footnotes Section */}
+                            {/* Footnotes */}
                             {config.linkReferences && footnotes.length > 0 && (
-                                <div className="mt-12 pt-6 border-t border-dashed border-gray-200">
-                                    <h4 className="text-sm font-bold text-gray-700 mb-3">引用链接</h4>
-                                    <div className="space-y-2 text-xs text-gray-500">
+                                <div style={{marginTop: '3em', paddingTop: '1.5em', borderTop: '1px dashed #e5e7eb'}}>
+                                    <h4 style={{fontSize: '14px', fontWeight: 'bold', color: '#374151', marginBottom: '0.75em'}}>引用链接</h4>
+                                    <div style={{fontSize: '12px', color: '#6b7280'}}>
                                         {footnotes.map((fn, idx) => (
-                                            <div key={idx} className="break-all flex gap-1">
-                                                <span className="shrink-0 inline-block text-center w-5 opacity-60">[{idx + 1}]</span>
+                                            <div key={idx} style={{marginBottom: '4px', display: 'flex', gap: '4px', wordBreak: 'break-all'}}>
+                                                <span style={{flexShrink: 0, width: '1.5em', textAlign: 'center', opacity: 0.6}}>[{idx + 1}]</span>
                                                 <span>{fn}</span>
                                             </div>
                                         ))}
@@ -378,19 +518,16 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
                             )}
                         </div>
 
-                        {/* WeChat Footer (Fixed look) */}
-                        <div className="px-4 py-6 text-sm text-[rgba(0,0,0,0.4)] flex items-center justify-between border-t border-gray-100 mt-auto bg-white">
-                            <div className="flex items-center gap-6">
-                            <div className="flex items-center gap-1.5 hover:text-[#576b95] cursor-pointer transition-colors">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                                <span>3</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 hover:text-[#576b95] cursor-pointer transition-colors">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-                                <span>8</span>
-                            </div>
-                            <span className="hover:text-[#576b95] cursor-pointer transition-colors">推荐</span>
-                            </div>
+                        {/* Footer */}
+                        <div style={{padding: '24px 16px', fontSize: '14px', color: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f3f4f6', marginTop: 'auto', backgroundColor: '#fff'}}>
+                           <div style={{display: 'flex', gap: '24px'}}>
+                              <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                <span style={{fontSize: '16px'}}>❤</span> 3
+                              </span>
+                              <span style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                <span style={{fontSize: '16px'}}>★</span> 8
+                              </span>
+                           </div>
                         </div>
 
                     </div>

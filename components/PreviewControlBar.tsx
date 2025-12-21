@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig } from '../types';
 import { AppearancePopover } from './AppearancePopover';
 import { WeChatAppearancePopover } from './WeChatAppearancePopover';
+import { WeChatCopyResult } from '../utils/wechatUtils';
 
 interface PreviewControlBarProps {
   currentTheme: BorderTheme;
@@ -17,7 +18,7 @@ interface PreviewControlBarProps {
   setWatermarkAlign: (align: WatermarkAlign) => void;
 
   onExport: () => void;
-  onCopyImage: () => void;
+  onCopyImage: () => Promise<{ success: boolean; message?: string } | void>;
   onSaveMarkdown: () => void;
   onExportZip: () => void;
   isExportingZip: boolean;
@@ -36,7 +37,13 @@ interface PreviewControlBarProps {
   
   weChatConfig?: WeChatConfig;
   setWeChatConfig?: (config: WeChatConfig) => void;
-  onCopyWeChatHtml?: () => void;
+  onCopyWeChatHtml?: () => Promise<WeChatCopyResult | null>;
+}
+
+interface NotificationState {
+  type: 'success' | 'warning' | 'error';
+  message: string;
+  details?: string[];
 }
 
 export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({ 
@@ -68,6 +75,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   onCopyWeChatHtml
 }) => {
   const [showAppearance, setShowAppearance] = useState(false);
+  const [notification, setNotification] = useState<NotificationState | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Close popover when clicking outside
@@ -80,6 +88,67 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Auto-dismiss success notifications
+  useEffect(() => {
+    if (notification && notification.type === 'success') {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  const handleWeChatCopy = async () => {
+    if (!onCopyWeChatHtml) return;
+    setNotification(null); // Clear previous
+
+    const result = await onCopyWeChatHtml();
+    
+    if (!result) return; // Logic cancelled or failed early
+
+    if (result.success) {
+       setNotification({
+         type: 'success',
+         message: '复制成功！可直接粘贴到微信后台。'
+       });
+    } else {
+       if (result.failedImages > 0 && result.totalImages > result.failedImages) {
+          // Partial Success
+          setNotification({
+             type: 'warning',
+             message: `复制成功，但有 ${result.failedImages} 张图片上传失败。`,
+             details: result.errors
+          });
+       } else if (result.failedImages > 0 && result.failedImages === result.totalImages) {
+          // Total Failure (Images)
+           setNotification({
+             type: 'error',
+             message: `复制成功，但所有图片 (${result.failedImages}张) 均上传失败。`,
+             details: result.errors
+          });
+       } else {
+          // Generic Error
+           setNotification({
+             type: 'error',
+             message: '复制过程中发生未知错误。',
+             details: result.errors
+          });
+       }
+    }
+  };
+
+  const handlePosterCopy = async () => {
+      setNotification(null);
+      const result = await onCopyImage();
+      if (result) {
+          if (result.success) {
+              setNotification({ type: 'success', message: '图片已复制到剪贴板！' });
+          } else {
+              setNotification({ type: 'error', message: '复制失败', details: [result.message || '未知错误'] });
+          }
+      }
+  };
 
   return (
     <div className={`h-12 border-b relative z-40 shrink-0 transition-colors duration-500 
@@ -174,7 +243,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
       </div>
 
       {/* Right: Action Button */}
-      <div className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-10 flex items-center gap-2 sm:gap-3 group">
+      <div className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-10 flex flex-col items-end group">
         
         {viewMode === ViewMode.Poster ? (
             // --- POSTER MODE: EXPORT IMAGE ---
@@ -223,7 +292,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                         <div className={`h-px w-full ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-100'}`}></div>
 
                         <button
-                            onClick={onCopyImage}
+                            onClick={handlePosterCopy}
                             className={`w-full text-left px-4 py-2.5 text-xs font-medium flex items-center gap-2 transition-colors ${
                             isDarkMode 
                                 ? 'text-[#abb2bf] hover:bg-[#2c313a] hover:text-[#e5c07b]' 
@@ -240,17 +309,31 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
             </>
         ) : viewMode === ViewMode.WeChat ? (
             // --- WECHAT MODE ---
-            <button
-                onClick={onCopyWeChatHtml}
-                className={`flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold text-white transition-all shadow-sm ${
-                     isDarkMode 
-                        ? 'bg-[#98c379] text-[#282c34] hover:bg-[#85bb5c] active:scale-95' 
-                        : 'bg-green-600 hover:bg-green-700 active:scale-95'
-                }`}
-            >
-                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
-                 <span>复制公众号格式</span>
-            </button>
+            <>
+                <button
+                    onClick={handleWeChatCopy}
+                    disabled={isExporting}
+                    className={`flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold text-white transition-all shadow-sm ${
+                        isExporting
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : (isDarkMode 
+                                ? 'bg-[#98c379] text-[#282c34] hover:bg-[#85bb5c] active:scale-95' 
+                                : 'bg-green-600 hover:bg-green-700 active:scale-95')
+                    }`}
+                >
+                    {isExporting ? (
+                        <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span>上传图片中...</span>
+                        </>
+                    ) : (
+                        <>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
+                            <span>复制公众号格式</span>
+                        </>
+                    )}
+                </button>
+            </>
         ) : (
             // --- WRITING MODE: SAVE/EXPORT SOURCE ---
             <>
@@ -322,6 +405,43 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                     </div>
                 )}
             </>
+        )}
+        
+        {/* Global Inline Notification Toast (Shared across modes) */}
+        {notification && (
+            <div className={`absolute top-full right-0 mt-3 p-3 rounded-lg shadow-xl border w-[280px] z-50 animate-in fade-in slide-in-from-top-2 select-text cursor-default ${
+                notification.type === 'success' 
+                    ? (isDarkMode ? 'bg-[#21252b] border-[#3e4451] text-[#abb2bf]' : 'bg-white border-gray-200 text-gray-600') // Low-key Gray Theme for Success
+                    : notification.type === 'warning'
+                    ? (isDarkMode ? 'bg-[#21252b] border-yellow-900/50 text-yellow-500' : 'bg-yellow-50 border-yellow-200 text-yellow-800')
+                    : (isDarkMode ? 'bg-[#21252b] border-red-900/50 text-red-400' : 'bg-red-50 border-red-200 text-red-700')
+            }`}>
+                <div className="flex items-start gap-2.5">
+                    {notification.type === 'success' ? (
+                        <svg className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-[#98c379]' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    ) : notification.type === 'warning' ? (
+                        <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    ) : (
+                        <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    )}
+                    <div className="flex-1">
+                        <p className="text-xs font-bold leading-tight mb-1">{notification.message}</p>
+                        {notification.details && notification.details.length > 0 && (
+                            <ul className="mt-2 pl-3 list-disc text-[10px] opacity-80 space-y-1 max-h-24 overflow-y-auto">
+                                {notification.details.slice(0, 3).map((err, idx) => (
+                                    <li key={idx} className="break-all">{err}</li>
+                                ))}
+                                {notification.details.length > 3 && (
+                                    <li>...还有 {notification.details.length - 3} 个错误</li>
+                                )}
+                            </ul>
+                        )}
+                    </div>
+                        <button onClick={() => setNotification(null)} className="opacity-50 hover:opacity-100 transition-opacity">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                </div>
+            </div>
         )}
 
       </div>

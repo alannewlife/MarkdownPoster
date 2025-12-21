@@ -1,57 +1,16 @@
 
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { toPng, toBlob } from 'html-to-image';
 import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
 import { PosterPreview } from './components/PosterPreview';
 import { WritingPreview } from './components/WritingPreview';
 import { WeChatPreview } from './components/WeChatPreview';
 import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig, WeChatTheme } from './types';
-import { cleanImagePool, compressImage, dataURItoBlob, getExtensionFromMime, getCorsFriendlyUrl } from './utils/imageUtils';
-
-// @ts-ignore
-import JSZip from 'jszip';
-// @ts-ignore
-import FileSaver from 'file-saver';
-
-const DEFAULT_MARKDOWN = `# Markdown 海报生成器
-
-![这是一张风景图片](https://picsum.photos/600/300 "这里是图片的标题说明")
-
-\`Markdown Poster\` 是一个工具，让你用 Markdown 制作优雅的图文海报。 ✨
-
-## 它的主要功能：
-
-1. 将 *Markdown* 转化为 **图文海报**
-2. 可以 **自定义**
-   - [x] 文本主题背景
-   - [x] 字体大小
-   - [x] 画布宽度
-   - [x] 署名位置
-3. 所见即所得，可**下载为PNG 图片**或者复制图片到**剪贴板**。
-4. 最大亮点，可以直接**黏贴图片**，或者**选择本地图片**插入编辑器
-
-## 适用场景：
-
-| 场景 | 描述 | 推荐主题 |
-| :--- | :--- | :--- |
-| 📝 **笔记分享** | 分享学习心得、读书笔记 | 极简白、macOS |
-| 🎨 **创意展示** | 展示代码片段、诗歌 | 赛博霓虹、海报模式 |
-| 📢 **社交媒体** | 朋友圈、推特长文 | 日落渐变、糖果甜心 |
-
-## 代码示例
-
-\`\`\`javascript
-function createArt() {
-  const inspiration = "🌟 Inspiration";
-  return \`Make it beautiful: \${inspiration}\`;
-}
-\`\`\`
-
-> "设计不仅仅是外观和感觉，设计是工作原理。" —— 史蒂夫·乔布斯
-
-[访问我们的网站 rrzxs.com](https://rrzxs.com)
-`;
+import { cleanImagePool, compressImage } from './utils/imageUtils';
+import { DEFAULT_MARKDOWN } from './constants/defaultContent';
+import { usePosterExport } from './hooks/usePosterExport';
+import { useWeChatExport } from './hooks/useWeChatExport';
+import { useProjectExport } from './hooks/useProjectExport';
 
 // LocalStorage Keys
 const STORAGE_KEY_MARKDOWN = 'markdown_poster_draft';
@@ -227,8 +186,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_DARK_MODE, String(isDarkMode));
   }, [isDarkMode]);
-
-  // ViewMode persistence removed to ensure it always starts in Reading (Writing) mode
   
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_WECHAT_CONFIG, JSON.stringify(weChatConfig));
@@ -244,16 +201,40 @@ export default function App() {
 
   // ---------------------------
 
-  const [isExporting, setIsExporting] = useState(false);
-  const [isExportingZip, setIsExportingZip] = useState(false); 
-  const [exportVersion, setExportVersion] = useState(0);
-  const [exportAction, setExportAction] = useState<'download' | 'copy' | null>(null);
   const [leftWidth, setLeftWidth] = useState(50); 
   
-  // Passed to PosterPreview via ref to capture the DOM
+  // Refs
   const exportRef = useRef<HTMLDivElement>(null);
   const weChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // --- USE EXPORT HOOKS ---
+  const { 
+      isExporting: isExportingPoster, 
+      handleDownloadPoster, 
+      handleCopyPoster 
+  } = usePosterExport({ 
+      exportRef, 
+      imagePool, 
+      setImagePool, 
+      markdown 
+  });
+
+  const {
+      isCopyingWeChat,
+      handleCopyHtml
+  } = useWeChatExport({ 
+      weChatRef 
+  });
+
+  const {
+      isExportingZip,
+      handleExportZip,
+      handleDownloadMarkdown
+  } = useProjectExport({
+      markdown,
+      imagePool
+  });
 
   // --- HISTORY / UNDO SYSTEM ---
   const [history, setHistory] = useState<string[]>(() => [markdown]);
@@ -552,186 +533,6 @@ export default function App() {
     document.body.style.userSelect = 'none'; 
   }, []);
 
-  const handleExport = (type: 'download' | 'copy') => {
-    const { cleanedPool, removedCount } = cleanImagePool(imagePool, markdown, 'Pre-Export');
-    
-    if (removedCount > 0) {
-        setImagePool(cleanedPool);
-    }
-
-    setIsExporting(true);
-    setExportAction(type);
-    setExportVersion(v => v + 1);
-  };
-
-  // Helper for Copy HTML (WeChat Mode)
-  const handleCopyHtml = async () => {
-    if (weChatRef.current) {
-        try {
-            // Select the content content-editable div or just the wrapper
-            // For WeChat, we usually want to copy the innerHTML of the prose container
-            // We need to find the specific content container inside weChatRef
-            const contentNode = weChatRef.current.querySelector('.wechat-content');
-            if (!contentNode) return;
-
-            // We need to ensure inline styles are computed if not already present, 
-            // but typical React rendering puts styles on elements or classes. 
-            // WeChat editors respect inline styles better.
-            // For now, let's try copying the clipboard HTML directly.
-            
-            const htmlContent = contentNode.innerHTML;
-            
-            // Create a ClipboardItem with text/html
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const textBlob = new Blob([contentNode.textContent || ''], { type: 'text/plain' });
-            
-            await navigator.clipboard.write([
-                new ClipboardItem({
-                    'text/html': blob,
-                    'text/plain': textBlob
-                })
-            ]);
-            
-            alert("已复制公众号格式到剪贴板！请直接在微信编辑器中粘贴。");
-        } catch (e) {
-            console.error("Copy HTML failed", e);
-            alert("复制失败，请重试。");
-        }
-    }
-  };
-
-  // NEW: Handle Zip Export
-  const handleExportZip = async () => {
-    if (isExportingZip) return;
-    setIsExportingZip(true);
-
-    try {
-        const zip = new JSZip();
-        const assetsFolder = zip.folder("assets");
-        
-        let processedMarkdown = markdown;
-        let networkImageCounter = 0;
-        const replacements = new Map<string, string>(); 
-        
-        const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
-        const matches = [...markdown.matchAll(imageRegex)];
-        
-        for (const match of matches) {
-            const originalSrc = match[2];
-            if (replacements.has(originalSrc)) continue;
-
-            try {
-                if (originalSrc.startsWith('local://')) {
-                    const imgId = originalSrc.replace('local://', '');
-                    const base64Data = imagePool[imgId];
-                    
-                    if (base64Data) {
-                        const mime = base64Data.split(';')[0].split(':')[1];
-                        const ext = getExtensionFromMime(mime);
-                        const filename = `${imgId}.${ext}`;
-                        const blob = dataURItoBlob(base64Data);
-                        assetsFolder?.file(filename, blob);
-                        replacements.set(originalSrc, `./assets/${filename}`);
-                    }
-                } else if (originalSrc.startsWith('http')) {
-                    const fetchUrl = getCorsFriendlyUrl(originalSrc);
-                    const response = await fetch(fetchUrl);
-                    if (!response.ok) throw new Error(`Failed to fetch ${originalSrc}`);
-                    
-                    const blob = await response.blob();
-                    const ext = getExtensionFromMime(blob.type);
-                    const filename = `net_img_${Date.now()}_${networkImageCounter}.${ext}`;
-                    networkImageCounter++;
-
-                    assetsFolder?.file(filename, blob);
-                    replacements.set(originalSrc, `./assets/${filename}`);
-                }
-            } catch (err) {
-                console.error(`Failed to process image: ${originalSrc}`, err);
-            }
-        }
-
-        replacements.forEach((newPath, oldSrc) => {
-            // Fix: replaceAll is not supported in ES2020 target, using split/join instead
-            processedMarkdown = processedMarkdown.split(`(${oldSrc})`).join(`(${newPath})`);
-        });
-
-        zip.file("index.md", processedMarkdown);
-        const content = await zip.generateAsync({ type: "blob" });
-        const saveAs = (FileSaver as any).saveAs || FileSaver;
-        saveAs(content, `markdown-project-${Date.now()}.zip`);
-
-    } catch (e) {
-        console.error("Export Zip Failed", e);
-        alert("打包导出失败，请检查网络或重试。");
-    } finally {
-        setIsExportingZip(false);
-    }
-  };
-
-  const handleDownloadMarkdown = () => {
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `markdown-${Date.now()}.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  useEffect(() => {
-    if (exportVersion === 0 || !exportAction) return; 
-
-    const performExport = async () => {
-      if (!exportRef.current) return;
-
-      try {
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 800)));
-        const images = Array.from(exportRef.current.querySelectorAll('img')) as HTMLImageElement[];
-        await Promise.all(images.map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise((resolve) => {
-                img.onload = () => resolve(null);
-                img.onerror = () => resolve(null);
-            });
-        }));
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        const options = { 
-          pixelRatio: 2,
-          skipAutoScale: true,
-          cacheBust: false, 
-        };
-
-        if (exportAction === 'download') {
-            const dataUrl = await toPng(exportRef.current, options);
-            const link = document.createElement('a');
-            link.download = `markdownposter-${Date.now()}.png`;
-            link.href = dataUrl;
-            link.click();
-        } else if (exportAction === 'copy') {
-            const blob = await toBlob(exportRef.current, options);
-            if (blob) {
-                await navigator.clipboard.write([
-                    new ClipboardItem({ [blob.type]: blob })
-                ]);
-                alert('图片已复制到剪贴板！'); 
-            }
-        }
-      } catch (error) {
-        console.error('Export failed', error);
-        alert('操作失败，请重试。');
-      } finally {
-        setIsExporting(false);
-        setExportAction(null);
-      }
-    };
-
-    performExport();
-  }, [exportVersion, exportAction]);
-
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -859,14 +660,14 @@ export default function App() {
             watermarkAlign={watermarkAlign}
             setWatermarkAlign={setWatermarkAlign}
 
-            onExport={() => handleExport('download')}
-            onCopyImage={() => handleExport('copy')}
+            onExport={handleDownloadPoster}
+            onCopyImage={handleCopyPoster}
             
             onSaveMarkdown={handleDownloadMarkdown}
             onExportZip={handleExportZip}
             isExportingZip={isExportingZip}
             
-            isExporting={isExporting}
+            isExporting={isExportingPoster || isCopyingWeChat} 
             showWatermark={showWatermark}
             setShowWatermark={setShowWatermark}
             watermarkText={watermarkText}

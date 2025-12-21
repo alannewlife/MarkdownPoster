@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getCorsFriendlyUrl } from '../utils/imageUtils';
 
@@ -78,6 +79,7 @@ export const StableImage: React.FC<StableImageProps> = ({ src, alt, imagePool, n
       alt={alt} 
       {...props} 
       className="w-full h-auto rounded-lg shadow-sm mx-auto block object-cover"
+      style={{ maxWidth: '100%', height: 'auto', display: 'block', margin: '0 auto' }} // Inline styles for WeChat
     />
   );
 };
