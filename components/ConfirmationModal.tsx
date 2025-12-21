@@ -1,0 +1,85 @@
+
+import React, { useEffect, useState } from 'react';
+
+interface ConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  isDarkMode: boolean;
+  confirmText?: string;
+  cancelText?: string;
+}
+
+export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  isDarkMode,
+  confirmText = "确定",
+  cancelText = "取消"
+}) => {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setVisible(true);
+    } else {
+      const timer = setTimeout(() => setVisible(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  if (!visible && !isOpen) return null;
+
+  return (
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0'}`}>
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
+        onClick={onClose}
+      />
+      
+      {/* Modal Card */}
+      <div className={`relative w-full max-w-sm rounded-xl p-6 shadow-2xl transform transition-all duration-200 scale-100 ${
+        isOpen ? 'translate-y-0 scale-100' : 'translate-y-4 scale-95'
+      } ${
+        isDarkMode 
+          ? 'bg-[#23272e] border border-[#3e4451] text-[#abb2bf]' 
+          : 'bg-white border border-gray-100 text-gray-700'
+      }`}>
+        <h3 className={`text-lg font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          {title}
+        </h3>
+        <p className={`text-sm mb-6 leading-relaxed ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          {message}
+        </p>
+        
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors border ${
+              isDarkMode 
+                ? 'border-transparent hover:bg-[#3e4451] text-gray-400' 
+                : 'border-gray-200 hover:bg-gray-50 text-gray-600'
+            }`}
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className="px-4 py-2 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg shadow-sm active:scale-95 transition-all"
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

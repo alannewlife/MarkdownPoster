@@ -22,6 +22,8 @@ interface PosterPreviewProps {
   imagePool: Record<string, string>;
   isDarkMode: boolean;
   visible: boolean;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
@@ -35,18 +37,24 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
   watermarkAlign,
   imagePool,
   isDarkMode,
-  visible
+  visible,
+  containerRef,
+  onScroll
 }, ref) => {
   const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
 
   return (
-    <div className={`absolute inset-0 overflow-y-auto flex flex-col items-center [background-size:20px_20px] ${
-        visible ? 'z-10 visible' : 'z-0 invisible'
-     } ${
-        isDarkMode 
-          ? 'bg-[radial-gradient(#333842_1px,transparent_1px)]' 
-          : 'bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]'
-    }`}>
+    <div 
+        ref={containerRef}
+        onScroll={onScroll}
+        className={`absolute inset-0 overflow-y-auto flex flex-col items-center [background-size:20px_20px] ${
+            visible ? 'z-10 visible' : 'z-0 invisible'
+         } ${
+            isDarkMode 
+              ? 'bg-[radial-gradient(#333842_1px,transparent_1px)]' 
+              : 'bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]'
+        }`}
+    >
        <div className={`w-full flex flex-col items-center min-h-min pt-10 pb-24 px-8 origin-center transition-all duration-300 ease-out delay-75 ${
           visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
        }`}>

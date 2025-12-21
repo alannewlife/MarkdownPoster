@@ -16,6 +16,8 @@ interface WritingPreviewProps {
   imagePool: Record<string, string>;
   visible: boolean;
   isDarkMode: boolean;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 export const WritingPreview: React.FC<WritingPreviewProps> = ({
@@ -23,7 +25,9 @@ export const WritingPreview: React.FC<WritingPreviewProps> = ({
   fontSize,
   imagePool,
   visible,
-  isDarkMode
+  isDarkMode,
+  containerRef,
+  onScroll
 }) => {
   
   // Use isDarkMode to determine text styling, ensuring readability against the app's background.
@@ -33,9 +37,13 @@ export const WritingPreview: React.FC<WritingPreviewProps> = ({
     : 'prose-slate prose-lg text-gray-800 prose-headings:text-gray-900';
 
   return (
-    <div className={`absolute inset-0 overflow-y-auto overflow-x-hidden ${
-        visible ? 'z-10 visible' : 'z-0 invisible'
-    } px-8 md:px-16`}>
+    <div 
+        ref={containerRef}
+        onScroll={onScroll}
+        className={`absolute inset-0 overflow-y-auto overflow-x-hidden ${
+            visible ? 'z-10 visible' : 'z-0 invisible'
+        } px-8 md:px-16`}
+    >
        <div className={`w-full max-w-4xl mx-auto py-16 min-h-full origin-center transition-all duration-300 ease-out delay-75 ${
            visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
        }`}>

@@ -5,6 +5,7 @@ import { PreviewControlBar } from './components/PreviewControlBar';
 import { PosterPreview } from './components/PosterPreview';
 import { WritingPreview } from './components/WritingPreview';
 import { WeChatPreview } from './components/WeChatPreview';
+import { ConfirmationModal } from './components/ConfirmationModal';
 import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig, WeChatTheme } from './types';
 import { cleanImagePool, compressImage } from './utils/imageUtils';
 import { DEFAULT_MARKDOWN } from './constants/defaultContent';
@@ -149,6 +150,9 @@ export default function App() {
     }
   });
 
+  // 11. Modal State
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+
   // --- PERSISTENCE EFFECTS ---
   
   useEffect(() => {
@@ -203,10 +207,27 @@ export default function App() {
 
   const [leftWidth, setLeftWidth] = useState(50); 
   
-  // Refs
+  // Refs for Content & Export
   const exportRef = useRef<HTMLDivElement>(null);
   const weChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Refs for Scroll Synchronization
+  const posterScrollRef = useRef<HTMLDivElement>(null);
+  const writingScrollRef = useRef<HTMLDivElement>(null);
+  const wechatScrollRef = useRef<HTMLDivElement>(null);
+  const isSyncingLeft = useRef(false);
+  const isSyncingRight = useRef(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Identify active preview container
+  const activePreviewRef = useMemo(() => {
+    switch (viewMode) {
+        case ViewMode.Poster: return posterScrollRef;
+        case ViewMode.WeChat: return wechatScrollRef;
+        default: return writingScrollRef;
+    }
+  }, [viewMode]);
 
   // --- USE EXPORT HOOKS ---
   const { 
@@ -235,6 +256,59 @@ export default function App() {
       markdown,
       imagePool
   });
+
+  // --- SCROLL SYNCHRONIZATION ---
+
+  const handleEditorScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (isSyncingRight.current) return;
+    
+    const editor = e.currentTarget;
+    const preview = activePreviewRef.current;
+    
+    if (preview) {
+        isSyncingLeft.current = true;
+        const percentage = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
+        // Only sync if scrollable content exists
+        if (!isNaN(percentage)) {
+             preview.scrollTop = percentage * (preview.scrollHeight - preview.clientHeight);
+        }
+        setTimeout(() => { isSyncingLeft.current = false; }, 50);
+    }
+  };
+
+  const handlePreviewScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+
+    // Toggle Back to Top Button
+    if (target.scrollTop > 300) {
+        setShowBackToTop(true);
+    } else {
+        setShowBackToTop(false);
+    }
+
+    if (isSyncingLeft.current) return;
+    
+    const editor = textareaRef.current;
+    if (editor) {
+        isSyncingRight.current = true;
+        const percentage = target.scrollTop / (target.scrollHeight - target.clientHeight);
+        // Only sync if scrollable content exists
+        if (!isNaN(percentage)) {
+            editor.scrollTop = percentage * (editor.scrollHeight - editor.clientHeight);
+        }
+        setTimeout(() => { isSyncingRight.current = false; }, 50);
+    }
+  };
+
+  const scrollToTop = () => {
+    if (activePreviewRef.current) {
+        activePreviewRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    // Also scroll editor to top (sync will handle it, but explicit is smoother)
+    if (textareaRef.current) {
+        textareaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // --- HISTORY / UNDO SYSTEM ---
   const [history, setHistory] = useState<string[]>(() => [markdown]);
@@ -547,6 +621,20 @@ export default function App() {
     event.target.value = '';
   };
 
+  // Replace native confirm with custom modal trigger
+  const handleResetClick = useCallback(() => {
+    setIsResetModalOpen(true);
+  }, []);
+
+  const confirmReset = useCallback(() => {
+    setMarkdown(DEFAULT_MARKDOWN);
+    setHistory([DEFAULT_MARKDOWN]);
+    setHistoryIndex(0);
+    requestAnimationFrame(() => {
+        textareaRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
   return (
     <div className={`flex flex-col h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#23272e]' : 'bg-white'}`}>
       
@@ -584,6 +672,7 @@ export default function App() {
                     </a>
                 </div>
                 <div className="w-px h-4 bg-[#d1d0c9] flex-shrink-0"></div>
+                {/* Editor Actions Buttons (Bold, List, Link etc.) */}
                 <div className={`flex items-center gap-1 transition-all duration-300 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                     <button onClick={handleHeading} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg></button>
                     <button onClick={() => insertMarkdownSyntax('**', '**')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="粗体"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg></button>
@@ -602,21 +691,22 @@ export default function App() {
 
              <div className="flex items-center gap-3">
                  <div className="flex items-center gap-1">
-                   <button type="button" onClick={handleUndo} disabled={historyIndex <= 0} className={`p-1.5 rounded transition-colors ${historyIndex > 0 ? (isDarkMode ? 'text-[#5c6370] hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]') : 'text-gray-300/20 cursor-not-allowed'}`} title="撤销 (Ctrl+Z)"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
-                   <button type="button" onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={`p-1.5 rounded transition-colors ${historyIndex < history.length - 1 ? (isDarkMode ? 'text-[#5c6370] hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-[#8c8880] hover:text-[#2d2d2d] hover:bg-[#e0ded7]') : 'text-gray-300/20 cursor-not-allowed'}`} title="重做 (Ctrl+Shift+Z)"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
+                   <button type="button" onClick={handleUndo} disabled={historyIndex <= 0} className={`p-1.5 rounded transition-colors flex-shrink-0 flex items-center gap-1 ${historyIndex > 0 ? (isDarkMode ? 'text-gray-500 hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]') : 'text-gray-300/20 cursor-not-allowed'}`} title="撤销 (Ctrl+Z)"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
+                   <button type="button" onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={`p-1.5 rounded transition-colors flex-shrink-0 flex items-center gap-1 ${historyIndex < history.length - 1 ? (isDarkMode ? 'text-gray-500 hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]') : 'text-gray-300/20 cursor-not-allowed'}`} title="重做 (Ctrl+Shift+Z)"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
                  </div>
                  <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
                  <div className="flex items-center gap-2">
-                    <button onClick={handleSelectAll} className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`} title="全选"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg><span>全选</span></button>
-                    <button onClick={handleCopySelection} className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`} title="复制选中内容"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg><span>复制</span></button>
+                    <button onClick={handleSelectAll} className={`p-1.5 rounded transition-colors flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-gray-500 hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="全选"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg><span>全选</span></button>
+                    <button onClick={handleCopySelection} className={`p-1.5 rounded transition-colors flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-gray-500 hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="复制选中内容"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg><span>复制</span></button>
                  </div>
-                 <button type="button" onClick={() => updateMarkdownImmediate('')} className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#e06c75]' : 'text-[#8c8880] hover:text-red-500'}`} title="清空"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg><span>清空</span></button>
+                 <button type="button" onClick={() => updateMarkdownImmediate('')} className={`p-1.5 rounded transition-colors flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-gray-500 hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="清空"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg><span>清空</span></button>
                  <div className={`w-px h-3 mx-1 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
                  <div className="flex items-center gap-3">
-                    <label className={`cursor-pointer flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide flex-shrink-0 transition-colors ${isDarkMode ? 'text-[#5c6370] hover:text-[#abb2bf]' : 'text-[#8c8880] hover:text-[#8b7e74]'}`}>
+                    <label className={`p-1.5 rounded transition-colors flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide cursor-pointer ${isDarkMode ? 'text-gray-500 hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`}>
                         <input type="file" accept=".md,.txt" onChange={handleFileImport} className="hidden" />
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg><span>导入</span>
                     </label>
+                    <button type="button" onClick={handleResetClick} className={`p-1.5 rounded transition-colors flex-shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${isDarkMode ? 'text-gray-500 hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="重置为初始内容"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg><span>重置</span></button>
                  </div>
              </div>
           </div>
@@ -627,6 +717,7 @@ export default function App() {
           </div>
           <textarea
             ref={textareaRef}
+            onScroll={handleEditorScroll}
             className={`flex-1 w-full px-8 pb-8 pt-9 resize-none focus:outline-none font-mono text-[15px] leading-[32px] bg-[length:100%_32px] bg-[position:0_0] bg-local transition-colors duration-500 ${isDarkMode ? 'text-[#d4cfbf] bg-[image:linear-gradient(transparent_31px,#333842_31px)] placeholder-[#5c6370] bg-[#23272e]' : 'text-[#2d2d2d] bg-transparent bg-[image:linear-gradient(transparent_31px,#e8e8e8_31px)] placeholder-gray-400/50'}`}
             value={markdown}
             onChange={handleTextChange}
@@ -700,6 +791,8 @@ export default function App() {
                watermarkAlign={watermarkAlign}
                imagePool={imagePool}
                isDarkMode={isDarkMode}
+               containerRef={posterScrollRef}
+               onScroll={handlePreviewScroll}
              />
 
             {/* --- WRITING MODE RENDER --- */}
@@ -709,6 +802,8 @@ export default function App() {
                fontSize={fontSize}
                imagePool={imagePool}
                isDarkMode={isDarkMode}
+               containerRef={writingScrollRef}
+               onScroll={handlePreviewScroll}
             />
 
             {/* --- WECHAT MODE RENDER --- */}
@@ -719,11 +814,39 @@ export default function App() {
                config={weChatConfig}
                imagePool={imagePool}
                isDarkMode={isDarkMode}
+               containerRef={wechatScrollRef}
+               onScroll={handlePreviewScroll}
             />
-          </div>
 
+             {/* Back To Top Button */}
+             <div className={`absolute bottom-8 right-8 transition-all duration-300 z-50 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+                 <button 
+                    onClick={scrollToTop}
+                    className={`p-3 rounded-full shadow-lg border transition-all duration-300 hover:-translate-y-1 ${
+                        isDarkMode 
+                        ? 'bg-[#2c313a] border-[#3e4451] text-[#abb2bf] hover:bg-[#323842] hover:text-white shadow-black/40' 
+                        : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-blue-500 shadow-xl'
+                    }`}
+                    title="回到顶部"
+                 >
+                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                 </button>
+             </div>
+          </div>
         </div>
       </div>
+      
+      {/* Confirmation Modal for Reset */}
+      <ConfirmationModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+        onConfirm={confirmReset}
+        title="确认重置？"
+        message="这将清空当前编辑区的所有内容、格式和历史记录，恢复到默认的示例文本。此操作无法撤销。"
+        isDarkMode={isDarkMode}
+        confirmText="彻底清空"
+        cancelText="我再想想"
+      />
     </div>
   );
 }

@@ -17,6 +17,8 @@ interface WeChatPreviewProps {
   imagePool: Record<string, string>;
   isDarkMode: boolean;
   visible: boolean;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 // Map config theme strings to Prism themes
@@ -98,7 +100,9 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
   config,
   imagePool,
   isDarkMode,
-  visible
+  visible,
+  containerRef,
+  onScroll
 }, ref) => {
   
   const themeStyle = getThemeStyles(config.theme || WeChatTheme.Default);
@@ -470,7 +474,11 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
   }), [config, themeStyle, imagePool, baseFontSize, lineHeightValue, headingSizes, commonTextStyle]);
 
   return (
-    <div className={`absolute inset-0 overflow-y-auto overflow-x-hidden ${visible ? 'z-10 visible' : 'z-0 invisible'} transition-colors duration-500 ${isDarkMode ? 'bg-[#1a1d23]' : 'bg-gray-100'}`}>
+    <div 
+        ref={containerRef}
+        onScroll={onScroll}
+        className={`absolute inset-0 overflow-y-auto overflow-x-hidden ${visible ? 'z-10 visible' : 'z-0 invisible'} transition-colors duration-500 ${isDarkMode ? 'bg-[#1a1d23]' : 'bg-gray-100'}`}
+    >
         <div className={`w-full min-h-full flex justify-center py-8 origin-center transition-all duration-300 ease-out delay-75 ${
             visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}>
@@ -492,7 +500,7 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
 
                     {/* Content Container */}
                     <div 
-                        className="w-[375px] md:w-[414px] bg-white min-h-[800px] relative flex flex-col"
+                        className="w-[375px] md:w-[480px] bg-white min-h-[800px] relative flex flex-col"
                         ref={ref}
                     >   
                         {/* Header */}
