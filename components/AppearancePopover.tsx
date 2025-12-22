@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { BorderTheme, FontSize, LayoutTheme, PaddingSize, WatermarkAlign } from '../types';
+import { ThemeRegistry } from '../utils/themeRegistry';
 
 interface AppearancePopoverProps {
   currentTheme: BorderTheme;
@@ -21,39 +22,6 @@ interface AppearancePopoverProps {
   onClose: () => void;
 }
 
-// Map themes to visual representations (colors/gradients)
-const ThemePreviews: Record<BorderTheme, string> = {
-  [BorderTheme.Minimal]: 'bg-white border border-gray-200',
-  [BorderTheme.MacOS]: 'bg-gray-100 border border-gray-300',
-  [BorderTheme.Neon]: 'bg-gray-900 border border-pink-500 shadow-[0_0_10px_rgba(236,72,153,0.5)]',
-  [BorderTheme.Sketch]: 'bg-[#f5f5f4] border-2 border-gray-800',
-  [BorderTheme.Retro]: 'bg-[#fdf6e3] border-double border-4 border-[#b58900]',
-  [BorderTheme.Glass]: 'bg-gradient-to-br from-indigo-100 to-purple-100 border border-white',
-  [BorderTheme.Sunset]: 'bg-gradient-to-br from-orange-100 to-rose-100',
-  [BorderTheme.Ocean]: 'bg-cyan-950 border border-cyan-500',
-  [BorderTheme.Candy]: 'bg-pink-50 border-2 border-pink-400',
-  [BorderTheme.Poster]: 'bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600'
-};
-
-const ThemeNames: Record<BorderTheme, string> = {
-  [BorderTheme.Minimal]: 'Minimal',
-  [BorderTheme.MacOS]: 'macOS',
-  [BorderTheme.Neon]: 'Neon',
-  [BorderTheme.Sketch]: 'Sketch',
-  [BorderTheme.Retro]: 'Retro',
-  [BorderTheme.Glass]: 'Glass',
-  [BorderTheme.Sunset]: 'Sunset',
-  [BorderTheme.Ocean]: 'Ocean',
-  [BorderTheme.Candy]: 'Candy',
-  [BorderTheme.Poster]: 'Poster'
-};
-
-const LayoutThemeLabels: Record<LayoutTheme, string> = {
-  [LayoutTheme.Base]: '标准',
-  [LayoutTheme.Classic]: '经典',
-  [LayoutTheme.Vibrant]: '活泼'
-};
-
 export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
   currentTheme,
   setTheme,
@@ -72,6 +40,12 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
   isDarkMode,
   onClose
 }) => {
+  // Fetch configuration lists from Registry
+  const allThemes = ThemeRegistry.getBorderThemes();
+  const allLayouts = ThemeRegistry.getLayoutThemes();
+  const allFontSizes = ThemeRegistry.getFontSizes();
+  const allPaddings = ThemeRegistry.getPaddings();
+
   return (
     <div className={`absolute top-full right-0 mt-2 w-[340px] rounded-xl shadow-2xl border p-5 z-50 animate-in fade-in zoom-in-95 origin-top-right duration-200 select-none
       ${isDarkMode 
@@ -90,26 +64,26 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
         自定义当前海报的背景、主题、字体大小和署名位置。
       </p>
 
-      {/* 1. Background Grid */}
+      {/* 1. Background Grid (Dynamic from YAML) */}
       <div className="mb-6">
         <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">背景</label>
         <div className="grid grid-cols-5 gap-2">
-          {Object.values(BorderTheme).map((t) => (
+          {allThemes.map((t) => (
             <button
-              key={t}
-              onClick={() => setTheme(t)}
-              title={ThemeNames[t]}
-              className={`w-full aspect-square rounded-lg transition-all relative group
-                ${ThemePreviews[t]}
-                ${currentTheme === t 
+              key={t.id}
+              onClick={() => setTheme(t.id)}
+              title={t.name}
+              className={`w-full aspect-square rounded-lg transition-all relative group overflow-hidden
+                ${t.preview}
+                ${currentTheme === t.id 
                   ? 'ring-2 ring-offset-2 ring-blue-500 scale-105 z-10' 
                   : 'hover:scale-110 hover:shadow-md'
                 }
                 ${isDarkMode ? 'ring-offset-[#21252b]' : 'ring-offset-white'}
               `}
             >
-               {currentTheme === t && (
-                 <div className="absolute inset-0 flex items-center justify-center">
+               {currentTheme === t.id && (
+                 <div className="absolute inset-0 flex items-center justify-center bg-black/10">
                     <div className="w-2 h-2 bg-white rounded-full shadow-sm"></div>
                  </div>
                )}
@@ -118,21 +92,21 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
         </div>
       </div>
 
-      {/* 2. Layout Theme (Segmented Control) */}
+      {/* 2. Layout Theme (Dynamic from YAML) */}
       <div className="mb-6">
         <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">排版主题</label>
         <div className={`flex p-1 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
-          {Object.values(LayoutTheme).map((lt) => (
+          {allLayouts.map((lt) => (
             <button
-              key={lt}
-              onClick={() => setLayoutTheme(lt)}
+              key={lt.id}
+              onClick={() => setLayoutTheme(lt.id)}
               className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-                layoutTheme === lt
+                layoutTheme === lt.id
                   ? (isDarkMode ? 'bg-[#3e4451] text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
                   : 'opacity-60 hover:opacity-100'
               }`}
             >
-              {LayoutThemeLabels[lt]}
+              {lt.name}
             </button>
           ))}
         </div>
@@ -140,44 +114,37 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
 
       {/* 3. Font Size & Padding */}
       <div className="mb-6 space-y-4">
-        {/* Font Size Row */}
+        {/* Font Size Row (Dynamic from YAML) */}
         <div className="flex items-center justify-between">
            <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">文字大小</label>
            <div className={`flex w-[180px] p-0.5 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
-              {[
-                { label: 'S', value: FontSize.Small, icon: 'text-xs' },
-                { label: 'M', value: FontSize.Medium, icon: 'text-sm' },
-                { label: 'L', value: FontSize.Large, icon: 'text-lg' },
-              ].map((option) => (
+              {allFontSizes.map((option) => (
                 <button
-                  key={option.value}
-                  onClick={() => setFontSize(option.value)}
+                  key={option.id}
+                  onClick={() => setFontSize(option.id)}
                   className={`flex-1 h-7 flex items-center justify-center rounded text-xs font-bold transition-all ${
-                    fontSize === option.value 
+                    fontSize === option.id 
                       ? (isDarkMode ? 'bg-[#3e4451] shadow-sm text-white' : 'bg-white shadow-sm text-gray-900')
                       : 'opacity-60 hover:opacity-100'
                   }`}
+                  title={option.label}
                 >
-                  <span className={option.icon}>T</span>
+                  <span className={option.icon || 'text-sm'}>T</span>
                 </button>
               ))}
            </div>
         </div>
 
-        {/* Padding Row */}
+        {/* Padding Row (Dynamic from YAML) */}
         <div className="flex items-center justify-between">
             <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">边距</label>
             <div className={`flex w-[180px] p-0.5 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
-              {[
-                { label: '窄', value: PaddingSize.Narrow },
-                { label: '中', value: PaddingSize.Medium },
-                { label: '宽', value: PaddingSize.Wide },
-              ].map((opt) => (
+              {allPaddings.map((opt) => (
                 <button
-                  key={opt.value}
-                  onClick={() => setPadding(opt.value)}
+                  key={opt.id}
+                  onClick={() => setPadding(opt.id)}
                   className={`flex-1 h-7 flex items-center justify-center text-xs font-medium rounded transition-all ${
-                    padding === opt.value
+                    padding === opt.id
                       ? (isDarkMode ? 'bg-[#3e4451] text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
                       : 'opacity-60 hover:opacity-100'
                   }`}
@@ -213,7 +180,7 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 type="text" 
                 value={watermarkText}
                 onChange={(e) => setWatermarkText(e.target.value)}
-                placeholder="人人智学社 rrzxs.com"
+                placeholder="输入您的署名"
                 maxLength={40}
                 className={`w-full text-xs rounded-md px-3 py-2 focus:outline-none focus:ring-1 transition-all ${
                     isDarkMode 
@@ -248,4 +215,3 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
     </div>
   );
 };
-    

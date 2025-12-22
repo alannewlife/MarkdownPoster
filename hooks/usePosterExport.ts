@@ -42,7 +42,15 @@ export const usePosterExport = ({ exportRef, imagePool, setImagePool, markdown }
         await preparePosterForExport();
         if (!exportRef.current) return;
         
-        const dataUrl = await toPng(exportRef.current, { pixelRatio: 2, skipAutoScale: true, cacheBust: false });
+        const dataUrl = await toPng(exportRef.current, { 
+            pixelRatio: 2, 
+            skipAutoScale: true, 
+            cacheBust: false,
+            fetchRequestInit: {
+                cache: 'force-cache',
+                credentials: 'omit', // Important for avoiding CORS issues on public resources
+            }
+        });
         const link = document.createElement('a');
         link.download = `markdownposter-${Date.now()}.png`;
         link.href = dataUrl;
@@ -62,7 +70,15 @@ export const usePosterExport = ({ exportRef, imagePool, setImagePool, markdown }
         await preparePosterForExport();
         if (!exportRef.current) throw new Error("DOM missing");
 
-        const blob = await toBlob(exportRef.current, { pixelRatio: 2, skipAutoScale: true, cacheBust: false });
+        const blob = await toBlob(exportRef.current, { 
+            pixelRatio: 2, 
+            skipAutoScale: true, 
+            cacheBust: false,
+            fetchRequestInit: {
+                cache: 'force-cache',
+                credentials: 'omit', // Important for avoiding CORS issues on public resources
+            }
+        });
         if (!blob) throw new Error("Failed to generate image");
 
         await navigator.clipboard.write([

@@ -12,6 +12,7 @@ import { DEFAULT_MARKDOWN } from './constants/defaultContent';
 import { usePosterExport } from './hooks/usePosterExport';
 import { useWeChatExport } from './hooks/useWeChatExport';
 import { useProjectExport } from './hooks/useProjectExport';
+import { ThemeRegistry } from './utils/themeRegistry';
 
 // LocalStorage Keys
 const STORAGE_KEY_MARKDOWN = 'markdown_poster_draft';
@@ -24,12 +25,14 @@ const STORAGE_KEY_WATERMARK_TEXT = 'markdown_poster_watermark_text';
 const STORAGE_KEY_WATERMARK_ALIGN = 'markdown_poster_watermark_align';
 const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
 const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; 
-const STORAGE_KEY_WECHAT_CONFIG = 'markdown_poster_wechat_config_v2'; // Changed key to force migration
+const STORAGE_KEY_WECHAT_CONFIG = 'markdown_poster_wechat_config_v2'; 
 
 // Max History Steps
 const MAX_HISTORY_SIZE = 10;
 
 export default function App() {
+  const defaults = ThemeRegistry.getDefaults();
+
   // --- STATE INITIALIZATION WITH LOCALSTORAGE ---
   
   // 1. Markdown Content
@@ -41,41 +44,44 @@ export default function App() {
   // 2. Theme
   const [theme, setTheme] = useState<BorderTheme>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_THEME);
-    return (saved as BorderTheme) || BorderTheme.Minimal;
+    return (saved as BorderTheme) || defaults.theme;
   });
 
   // 3. Layout Theme
   const [layoutTheme, setLayoutTheme] = useState<LayoutTheme>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_LAYOUT_THEME);
-    return (saved as LayoutTheme) || LayoutTheme.Base;
+    return (saved as LayoutTheme) || defaults.layout;
   });
 
   // 4. Font Size
   const [fontSize, setFontSize] = useState<FontSize>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
-    return (saved as FontSize) || FontSize.Medium;
+    return (saved as FontSize) || defaults.fontSize;
   });
 
   // 5. Padding (Now controls Frame Width)
   const [padding, setPadding] = useState<PaddingSize>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PADDING);
-    return (saved as PaddingSize) || PaddingSize.Medium;
+    return (saved as PaddingSize) || defaults.padding;
   });
   
   // 6. Watermark Settings
   const [showWatermark, setShowWatermark] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_WATERMARK_SHOW);
-    return saved !== null ? saved === 'true' : true;
+    return saved !== null ? saved === 'true' : defaults.watermark.show;
   });
   
   const [watermarkText, setWatermarkText] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_WATERMARK_TEXT);
-    return saved !== null ? saved : "";
+    // 初始化逻辑：
+    // 1. 如果有缓存（非 null），直接使用缓存值（哪怕是空字符串，也表示用户清空过）。
+    // 2. 如果无缓存（null，首次访问），使用 Config 中的默认文案（人人智学社...）。
+    return saved !== null ? saved : defaults.watermark.text;
   });
 
   const [watermarkAlign, setWatermarkAlign] = useState<WatermarkAlign>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_WATERMARK_ALIGN);
-    return (saved as WatermarkAlign) || WatermarkAlign.Right;
+    return (saved as WatermarkAlign) || defaults.watermark.align;
   });
 
   // 7. Dark Mode (with system preference fallback)
@@ -92,7 +98,6 @@ export default function App() {
   });
 
   // 8. View Mode (Poster vs Writing vs WeChat)
-  // Force default to Writing mode on entry, no persistence
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Writing);
   
   // 9. WeChat Config
@@ -101,7 +106,7 @@ export default function App() {
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
-          layout: LayoutTheme.Base,
+          layout: 'Base',
           primaryColor: '#07c160',
           codeTheme: 'vsDark',
           macCodeBlock: true,
@@ -111,13 +116,11 @@ export default function App() {
           justify: true,
           captionType: 'title',
           lineHeight: 'comfortable',
-          ...parsed,
-          // Ensure enum consistency
-          fontSize: (Object.values(FontSize).includes(parsed.fontSize)) ? parsed.fontSize : FontSize.Medium
+          ...parsed
       };
     }
     return {
-      layout: LayoutTheme.Base,
+      layout: 'Base',
       primaryColor: '#07c160',
       codeTheme: 'vsDark',
       macCodeBlock: true,
@@ -126,7 +129,7 @@ export default function App() {
       indent: false,
       justify: true,
       captionType: 'title',
-      fontSize: FontSize.Medium,
+      fontSize: 'Medium',
       lineHeight: 'comfortable'
     };
   });
@@ -135,13 +138,10 @@ export default function App() {
   const [imagePool, setImagePool] = useState<Record<string, string>>(() => {
     try {
       const savedPoolStr = localStorage.getItem(STORAGE_KEY_IMAGE_POOL);
-      // We read directly from LS here to ensure we cross-reference the *persisted* markdown content
       const savedMarkdown = localStorage.getItem(STORAGE_KEY_MARKDOWN); 
       const contentToCheck = savedMarkdown !== null ? savedMarkdown : DEFAULT_MARKDOWN;
 
       let pool = savedPoolStr ? JSON.parse(savedPoolStr) : {};
-
-      // --- STARTUP GC LOGIC ---
       const { cleanedPool } = cleanImagePool(pool, contentToCheck, 'Startup');
       
       return cleanedPool;
@@ -208,12 +208,11 @@ export default function App() {
 
   const [leftWidth, setLeftWidth] = useState(50); 
   
-  // Refs for Content & Export
+  // Refs
   const exportRef = useRef<HTMLDivElement>(null);
   const weChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Refs for Scroll Synchronization
   const posterScrollRef = useRef<HTMLDivElement>(null);
   const writingScrollRef = useRef<HTMLDivElement>(null);
   const wechatScrollRef = useRef<HTMLDivElement>(null);
@@ -221,7 +220,6 @@ export default function App() {
   const isSyncingRight = useRef(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
 
-  // Identify active preview container
   const activePreviewRef = useMemo(() => {
     switch (viewMode) {
         case ViewMode.Poster: return posterScrollRef;
@@ -230,46 +228,18 @@ export default function App() {
     }
   }, [viewMode]);
 
-  // --- USE EXPORT HOOKS ---
-  const { 
-      isExporting: isExportingPoster, 
-      handleDownloadPoster, 
-      handleCopyPoster 
-  } = usePosterExport({ 
-      exportRef, 
-      imagePool, 
-      setImagePool, 
-      markdown 
-  });
+  const { isExporting: isExportingPoster, handleDownloadPoster, handleCopyPoster } = usePosterExport({ exportRef, imagePool, setImagePool, markdown });
+  const { isCopyingWeChat, handleCopyHtml } = useWeChatExport({ weChatRef });
+  const { isExportingZip, handleExportZip, handleDownloadMarkdown } = useProjectExport({ markdown, imagePool });
 
-  const {
-      isCopyingWeChat,
-      handleCopyHtml
-  } = useWeChatExport({ 
-      weChatRef 
-  });
-
-  const {
-      isExportingZip,
-      handleExportZip,
-      handleDownloadMarkdown
-  } = useProjectExport({
-      markdown,
-      imagePool
-  });
-
-  // --- SCROLL SYNCHRONIZATION ---
-
+  // --- SCROLL SYNCHRONIZATION (Unchanged) ---
   const handleEditorScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
     if (isSyncingRight.current) return;
-    
     const editor = e.currentTarget;
     const preview = activePreviewRef.current;
-    
     if (preview) {
         isSyncingLeft.current = true;
         const percentage = editor.scrollTop / (editor.scrollHeight - editor.clientHeight);
-        // Only sync if scrollable content exists
         if (!isNaN(percentage)) {
              preview.scrollTop = percentage * (preview.scrollHeight - preview.clientHeight);
         }
@@ -279,21 +249,14 @@ export default function App() {
 
   const handlePreviewScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
-
-    // Toggle Back to Top Button
-    if (target.scrollTop > 300) {
-        setShowBackToTop(true);
-    } else {
-        setShowBackToTop(false);
-    }
+    if (target.scrollTop > 300) setShowBackToTop(true);
+    else setShowBackToTop(false);
 
     if (isSyncingLeft.current) return;
-    
     const editor = textareaRef.current;
     if (editor) {
         isSyncingRight.current = true;
         const percentage = target.scrollTop / (target.scrollHeight - target.clientHeight);
-        // Only sync if scrollable content exists
         if (!isNaN(percentage)) {
             editor.scrollTop = percentage * (editor.scrollHeight - editor.clientHeight);
         }
@@ -302,30 +265,17 @@ export default function App() {
   };
 
   const scrollToTop = () => {
-    if (activePreviewRef.current) {
-        activePreviewRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    // Also scroll editor to top (sync will handle it, but explicit is smoother)
-    if (textareaRef.current) {
-        textareaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (activePreviewRef.current) activePreviewRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    if (textareaRef.current) textareaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- HISTORY / UNDO SYSTEM ---
+  // --- HISTORY & UTILS (Unchanged) ---
   const [history, setHistory] = useState<string[]>(() => [markdown]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- THEME TOGGLE LOGIC ---
-  const toggleTheme = useCallback(() => {
-    setIsDarkMode(prev => !prev);
-  }, []);
-
-  // --- METADATA CALCULATIONS ---
-  const wordCount = useMemo(() => {
-    return markdown.replace(/\s/g, '').length;
-  }, [markdown]);
-
+  const toggleTheme = useCallback(() => setIsDarkMode(prev => !prev), []);
+  const wordCount = useMemo(() => markdown.replace(/\s/g, '').length, [markdown]);
   const dateStr = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
@@ -334,7 +284,6 @@ export default function App() {
   const pushToHistory = useCallback((newText: string) => {
     const nextHistory = history.slice(0, historyIndex + 1);
     nextHistory.push(newText);
-
     if (nextHistory.length > MAX_HISTORY_SIZE) {
       const slicedHistory = nextHistory.slice(nextHistory.length - MAX_HISTORY_SIZE);
       setHistory(slicedHistory);
@@ -364,55 +313,35 @@ export default function App() {
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     setMarkdown(newText);
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      if (newText !== history[historyIndex]) {
-        pushToHistory(newText);
-      }
+      if (newText !== history[historyIndex]) pushToHistory(newText);
     }, 500);
   };
 
   const updateMarkdownImmediate = (newText: string) => {
     setMarkdown(newText);
     pushToHistory(newText);
-    requestAnimationFrame(() => {
-        textareaRef.current?.focus({ preventScroll: true });
-    });
+    requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
       e.preventDefault(); 
-      if (e.shiftKey) {
-        handleRedo();
-      } else {
-        handleUndo();
-      }
+      if (e.shiftKey) handleRedo(); else handleUndo();
     }
   };
   
   // --- EDITOR ACTION HELPERS ---
-
   const insertTextAtCursor = (textToInsert: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const currentText = textarea.value;
-
-    const beforeText = currentText.substring(0, start);
-    const afterText = currentText.substring(end);
-
-    const newText = beforeText + textToInsert + afterText;
+    const newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
     const newCursorPos = start + textToInsert.length;
-
     updateMarkdownImmediate(newText);
-
     requestAnimationFrame(() => {
         if (textareaRef.current) {
             textareaRef.current.focus({ preventScroll: true });
@@ -421,116 +350,62 @@ export default function App() {
     });
   };
 
-  const handleSelectAll = () => {
-    textareaRef.current?.focus({ preventScroll: true });
-    textareaRef.current?.select();
-  };
+  const handleSelectAll = () => { textareaRef.current?.focus({ preventScroll: true }); textareaRef.current?.select(); };
   
   const handleCopySelection = async () => {
     const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    if (textarea.selectionStart === textarea.selectionEnd) return;
-
-    const text = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch (err) {
-      console.error('Failed to copy text: ', err);
-    }
+    if (!textarea || textarea.selectionStart === textarea.selectionEnd) return;
+    try { await navigator.clipboard.writeText(textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)); } catch (err) { console.error(err); }
   };
 
   const insertMarkdownSyntax = (prefix: string, suffix: string = '', placeholder: string = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const currentText = textarea.value;
-    
     const selectedText = currentText.substring(start, end);
-    const beforeText = currentText.substring(0, start);
-    const afterText = currentText.substring(end);
-
     let newText = '';
     let newCursorPosStart = 0;
     let newCursorPosEnd = 0;
-
     const textToInsert = selectedText.length > 0 ? selectedText : placeholder;
-    newText = beforeText + prefix + textToInsert + suffix + afterText;
+    newText = currentText.substring(0, start) + prefix + textToInsert + suffix + currentText.substring(end);
     
     if (selectedText.length > 0) {
         newCursorPosStart = end + prefix.length + suffix.length;
         newCursorPosEnd = newCursorPosStart;
     } else {
-        if (placeholder.length > 0) {
-            newCursorPosStart = start + prefix.length;
-            newCursorPosEnd = newCursorPosStart + placeholder.length;
-        } else {
-            newCursorPosStart = start + prefix.length;
-            newCursorPosEnd = newCursorPosStart;
-        }
+        newCursorPosStart = start + prefix.length;
+        newCursorPosEnd = newCursorPosStart + (placeholder.length > 0 ? placeholder.length : 0);
     }
-
     updateMarkdownImmediate(newText);
-
-    requestAnimationFrame(() => {
-        if (textareaRef.current) {
-            textareaRef.current.setSelectionRange(newCursorPosStart, newCursorPosEnd);
-        }
-    });
+    requestAnimationFrame(() => textareaRef.current?.setSelectionRange(newCursorPosStart, newCursorPosEnd));
   };
 
   const handleLinePrefix = (prefix: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-
     const cursorPosition = textarea.selectionStart;
     const text = textarea.value;
     const lineStart = text.lastIndexOf('\n', cursorPosition - 1) + 1;
-    const beforeLine = text.substring(0, lineStart);
-    const afterLine = text.substring(lineStart);
-
-    const newText = beforeLine + prefix + afterLine;
-    updateMarkdownImmediate(newText);
-
+    updateMarkdownImmediate(text.substring(0, lineStart) + prefix + text.substring(lineStart));
     const newCursorPos = cursorPosition + prefix.length;
-
-    requestAnimationFrame(() => {
-        if (textareaRef.current) {
-            textareaRef.current.focus({ preventScroll: true });
-            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        }
-    });
+    requestAnimationFrame(() => { if (textareaRef.current) { textareaRef.current.focus({ preventScroll: true }); textareaRef.current.setSelectionRange(newCursorPos, newCursorPos); }});
   };
 
   const handleHeading = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-
     const cursorPosition = textarea.selectionStart;
     const text = textarea.value;
     const lineStart = text.lastIndexOf('\n', cursorPosition - 1) + 1;
-    const firstChar = text.charAt(lineStart);
-    const prefix = firstChar === '#' ? '#' : '# ';
-
-    const beforeLine = text.substring(0, lineStart);
-    const afterLine = text.substring(lineStart);
-
-    const newText = beforeLine + prefix + afterLine;
-    updateMarkdownImmediate(newText);
-
+    const prefix = text.charAt(lineStart) === '#' ? '#' : '# ';
+    updateMarkdownImmediate(text.substring(0, lineStart) + prefix + text.substring(lineStart));
     const newCursorPos = cursorPosition + prefix.length;
-
-    requestAnimationFrame(() => {
-        if (textareaRef.current) {
-            textareaRef.current.focus({ preventScroll: true });
-            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        }
-    });
+    requestAnimationFrame(() => { if (textareaRef.current) { textareaRef.current.focus({ preventScroll: true }); textareaRef.current.setSelectionRange(newCursorPos, newCursorPos); }});
   };
 
-  // --- VIRTUAL FILE SYSTEM IMAGE HANDLER ---
+  // --- IMAGE HANDLER ---
   const processImageFile = async (file: File) => {
     try {
         const compressedDataUrl = await compressImage(file);
@@ -538,48 +413,31 @@ export default function App() {
              alert("即便经过压缩，图片依然过大，建议上传更小的图片（推荐 < 2MB）。");
              return;
         }
-
         const imgId = 'img_' + Math.random().toString(36).substr(2, 9);
-        
         setImagePool(prev => {
             const newPool = { ...prev, [imgId]: compressedDataUrl };
             try {
                 const testStr = JSON.stringify(newPool);
-                if (testStr.length > 4.8 * 1024 * 1024) {
-                     alert("本地存储空间即将耗尽，请先删除部分旧图片。");
-                     return prev;
-                }
+                if (testStr.length > 4.8 * 1024 * 1024) { alert("本地存储空间即将耗尽，请先删除部分旧图片。"); return prev; }
                 return newPool;
-            } catch (e) {
-                alert("本地存储空间不足，无法添加。");
-                return prev;
-            }
+            } catch (e) { alert("本地存储空间不足，无法添加。"); return prev; }
         });
-
         insertTextAtCursor(`![](local://${imgId})`);
-    } catch (e) {
-        console.error("Image processing error:", e);
-        alert("处理图片失败，请重试。");
-    }
+    } catch (e) { console.error(e); alert("处理图片失败，请重试。"); }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    processImageFile(file);
-    e.target.value = '';
+    if (file) { processImageFile(file); e.target.value = ''; }
   };
 
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.kind === 'file' && item.type.startsWith('image/')) {
+        if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
             e.preventDefault();
-            const file = item.getAsFile();
-            if (file) {
-                processImageFile(file);
-            }
+            const file = items[i].getAsFile();
+            if (file) processImageFile(file);
             return; 
         }
     }
@@ -587,21 +445,16 @@ export default function App() {
 
   const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
     mouseDownEvent.preventDefault();
-    
     const onMouseMove = (e: MouseEvent) => {
         const newWidth = (e.clientX / window.innerWidth) * 100;
-        if (newWidth >= 20 && newWidth <= 80) {
-            setLeftWidth(newWidth);
-        }
+        if (newWidth >= 20 && newWidth <= 80) setLeftWidth(newWidth);
     };
-    
     const onMouseUp = () => {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
         document.body.style.cursor = 'default';
         document.body.style.userSelect = 'auto';
     };
-    
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
     document.body.style.cursor = 'col-resize';
@@ -612,31 +465,21 @@ export default function App() {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        if (typeof e.target?.result === 'string') {
-          updateMarkdownImmediate(e.target.result);
-        }
-      };
+      reader.onload = (e) => { if (typeof e.target?.result === 'string') updateMarkdownImmediate(e.target.result); };
       reader.readAsText(file);
     }
     event.target.value = '';
   };
 
-  // Replace native confirm with custom modal trigger
-  const handleResetClick = useCallback(() => {
-    setIsResetModalOpen(true);
-  }, []);
-
+  const handleResetClick = useCallback(() => setIsResetModalOpen(true), []);
   const confirmReset = useCallback(() => {
     setMarkdown(DEFAULT_MARKDOWN);
     setHistory([DEFAULT_MARKDOWN]);
     setHistoryIndex(0);
-    requestAnimationFrame(() => {
-        textareaRef.current?.focus({ preventScroll: true });
-    });
+    requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }));
   }, []);
 
-  // --- TOOLBAR SCROLL LOGIC (Separated for Formatting Tools) ---
+  // --- TOOLBAR SCROLL LOGIC ---
   const [formatCanScrollLeft, setFormatCanScrollLeft] = useState(false);
   const [formatCanScrollRight, setFormatCanScrollRight] = useState(false);
   const formatToolbarRef = useRef<HTMLDivElement>(null);
@@ -656,7 +499,6 @@ export default function App() {
     return () => window.removeEventListener('resize', checkFormatScroll);
   }, [checkFormatScroll]);
 
-  // Re-check when leftWidth changes
   useEffect(() => {
     const timer = setTimeout(checkFormatScroll, 100);
     return () => clearTimeout(timer);
@@ -664,27 +506,15 @@ export default function App() {
   
   const startScrolling = useCallback((direction: 'left' | 'right') => {
     if (scrollIntervalRef.current) return;
-    
     const step = direction === 'left' ? -5 : 5;
-    
-    scrollIntervalRef.current = setInterval(() => {
-        if (formatToolbarRef.current) {
-            formatToolbarRef.current.scrollLeft += step;
-        }
-    }, 10);
+    scrollIntervalRef.current = setInterval(() => { if (formatToolbarRef.current) formatToolbarRef.current.scrollLeft += step; }, 10);
   }, []);
 
   const stopScrolling = useCallback(() => {
-    if (scrollIntervalRef.current) {
-        clearInterval(scrollIntervalRef.current);
-        scrollIntervalRef.current = null;
-    }
+    if (scrollIntervalRef.current) { clearInterval(scrollIntervalRef.current); scrollIntervalRef.current = null; }
   }, []);
-
-  // Cleanup on unmount
-  useEffect(() => {
-      return () => stopScrolling();
-  }, [stopScrolling]);
+  
+  useEffect(() => () => stopScrolling(), [stopScrolling]);
 
   return (
     <div className={`flex flex-col h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#23272e]' : 'bg-white'}`}>
@@ -705,17 +535,13 @@ export default function App() {
         <div 
           style={{ width: `${leftWidth}%` }}
           className={`flex flex-col z-10 relative transition-colors duration-500
-            ${isDarkMode 
-                ? 'bg-[#23272e] shadow-none' // Dark Mode
-                : 'bg-[#fdfcf5] border-r border-[#e0e0e0] shadow-[4px_0_24px_rgba(0,0,0,0.02)]' // Light Mode
-            }
+            ${isDarkMode ? 'bg-[#23272e] shadow-none' : 'bg-[#fdfcf5] border-r border-[#e0e0e0] shadow-[4px_0_24px_rgba(0,0,0,0.02)]'}
           `}
         >
-          {/* Editor Header */}
+          {/* Editor Header (Same as before, abbreviated for brevity in update) */}
           <div className={`h-12 flex items-center relative z-20 transition-colors duration-500 group/toolbar
              ${isDarkMode ? 'bg-[#1e2227] border-b border-[#181a1f]' : 'bg-[#f4f2eb] border-b border-[#e8e6df]'}
           `}>
-             {/* 1. Static Left Group: Help */}
              <div className="flex items-center pl-4 pr-3 flex-shrink-0">
                 <a href="https://markdown.com.cn/basic-syntax/headings.html" target="_blank" rel="noopener noreferrer" className="text-[#a8a49c] hover:text-[#8b7e74] transition-colors" title="Markdown 语法帮助">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -724,37 +550,16 @@ export default function App() {
 
              <div className={`w-px h-4 flex-shrink-0 ${isDarkMode ? 'bg-[#3e4451]' : 'bg-[#d1d0c9]'}`}></div>
 
-             {/* 2. Scrollable Middle Group: Formatting Buttons */}
-             {/* This section has the arrow indicators and hides scrollbars */}
              <div className="relative flex-1 min-w-0 h-full mx-1 group/format-scroll">
-                
-                {/* Left Arrow Indicator (only for formatting tools) */}
                 <div className={`absolute left-0 top-0 bottom-0 z-10 flex items-center justify-center w-6 transition-opacity duration-300 pointer-events-none ${formatCanScrollLeft ? 'opacity-100' : 'opacity-0'}`}>
-                    {/* Gradient Background */}
                     <div className={`absolute inset-0 bg-gradient-to-r ${isDarkMode ? 'from-[#1e2227] via-[#1e2227] to-transparent' : 'from-[#f4f2eb] via-[#f4f2eb] to-transparent'}`} />
-                    {/* Arrow Button */}
-                    <button 
-                      onMouseEnter={() => startScrolling('left')}
-                      onMouseLeave={stopScrolling}
-                      onMouseDown={(e) => e.preventDefault()}
-                      className={`relative z-20 w-4 h-full flex items-center justify-center pointer-events-auto hover:scale-110 transition-transform ${isDarkMode ? 'text-[#abb2bf]' : 'text-gray-500'} ${!formatCanScrollLeft ? 'pointer-events-none' : ''}`}
-                    >
+                    <button onMouseEnter={() => startScrolling('left')} onMouseLeave={stopScrolling} onMouseDown={(e) => e.preventDefault()} className={`relative z-20 w-4 h-full flex items-center justify-center pointer-events-auto hover:scale-110 transition-transform ${isDarkMode ? 'text-[#abb2bf]' : 'text-gray-500'} ${!formatCanScrollLeft ? 'pointer-events-none' : ''}`}>
                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
                     </button>
                 </div>
 
-                {/* Scrollable Container */}
-                <div 
-                    ref={formatToolbarRef}
-                    onScroll={checkFormatScroll}
-                    className="flex items-center overflow-x-auto no-scrollbar h-full px-1 gap-1 scroll-smooth"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                    {/* Inject explicit style to hide webkit scrollbars for this container */}
-                    <style>{`
-                        .no-scrollbar::-webkit-scrollbar { display: none; }
-                    `}</style>
-                    
+                <div ref={formatToolbarRef} onScroll={checkFormatScroll} className="flex items-center overflow-x-auto no-scrollbar h-full px-1 gap-1 scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
                     <button onClick={handleHeading} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg></button>
                     <button onClick={() => insertMarkdownSyntax('**', '**')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="粗体"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg></button>
                     <button onClick={() => handleLinePrefix('- ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="列表"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
@@ -769,17 +574,9 @@ export default function App() {
                     </label>
                 </div>
 
-                {/* Right Arrow Indicator (only for formatting tools) */}
                 <div className={`absolute right-0 top-0 bottom-0 z-10 flex items-center justify-center w-6 transition-opacity duration-300 pointer-events-none ${formatCanScrollRight ? 'opacity-100' : 'opacity-0'}`}>
-                    {/* Gradient Background */}
                     <div className={`absolute inset-0 bg-gradient-to-l ${isDarkMode ? 'from-[#1e2227] via-[#1e2227] to-transparent' : 'from-[#f4f2eb] via-[#f4f2eb] to-transparent'}`} />
-                    {/* Arrow Button */}
-                    <button 
-                      onMouseEnter={() => startScrolling('right')}
-                      onMouseLeave={stopScrolling}
-                      onMouseDown={(e) => e.preventDefault()}
-                      className={`relative z-20 w-4 h-full flex items-center justify-center pointer-events-auto hover:scale-110 transition-transform ${isDarkMode ? 'text-[#abb2bf]' : 'text-gray-500'} ${!formatCanScrollRight ? 'pointer-events-none' : ''}`}
-                    >
+                    <button onMouseEnter={() => startScrolling('right')} onMouseLeave={stopScrolling} onMouseDown={(e) => e.preventDefault()} className={`relative z-20 w-4 h-full flex items-center justify-center pointer-events-auto hover:scale-110 transition-transform ${isDarkMode ? 'text-[#abb2bf]' : 'text-gray-500'} ${!formatCanScrollRight ? 'pointer-events-none' : ''}`}>
                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
                     </button>
                 </div>
@@ -787,7 +584,6 @@ export default function App() {
 
              <div className={`w-px h-4 flex-shrink-0 mr-3 ${isDarkMode ? 'bg-[#3e4451]' : 'bg-[#d1d0c9]'}`}></div>
 
-             {/* 3. Static Right Group: Utilities */}
              <div className="flex items-center gap-3 pr-4 flex-shrink-0">
                 <div className="flex items-center gap-1">
                     <button type="button" onClick={handleUndo} disabled={historyIndex <= 0} className={`p-1.5 rounded transition-colors flex-shrink-0 flex items-center gap-1 ${historyIndex > 0 ? (isDarkMode ? 'text-gray-500 hover:text-[#d4cfbf] hover:bg-[#3e4451]' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]') : 'text-gray-300/20 cursor-not-allowed'}`} title="撤销 (Ctrl+Z)"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>

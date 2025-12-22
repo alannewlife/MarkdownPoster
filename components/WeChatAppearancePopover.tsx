@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { WeChatConfig, LayoutTheme, FontSize } from '../types';
+import { WeChatConfig } from '../types';
 
 interface WeChatAppearancePopoverProps {
   config: WeChatConfig;
@@ -18,10 +18,11 @@ const CodeThemes = [
   { label: 'Oceanic', value: 'oceanicNext' },
 ];
 
-const LayoutLabels: Record<LayoutTheme, string> = {
-    [LayoutTheme.Base]: '标准',
-    [LayoutTheme.Classic]: '经典',
-    [LayoutTheme.Vibrant]: '活泼'
+// Manual mapping for WeChat since it has its own logic separate from Poster Mode's dynamic YAML
+const LayoutLabels: Record<string, string> = {
+    'Base': '标准',
+    'Classic': '经典',
+    'Vibrant': '活泼'
 };
 
 const ColorPresets = [
@@ -64,7 +65,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
       <div className="mb-6">
         <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">排版风格</label>
         <div className={`flex p-1 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
-          {Object.values(LayoutTheme).map((lt) => (
+          {['Base', 'Classic', 'Vibrant'].map((lt) => (
             <button
               key={lt}
               onClick={() => updateConfig('layout', lt)}
@@ -117,9 +118,9 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
             <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">正文字号</label>
             <div className={`flex w-[180px] p-0.5 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
               {[
-                { label: '小', value: FontSize.Small },
-                { label: '中', value: FontSize.Medium },
-                { label: '大', value: FontSize.Large }
+                { label: '小', value: 'Small' },
+                { label: '中', value: 'Medium' },
+                { label: '大', value: 'Large' }
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -240,7 +241,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
       <div className="mt-6 pt-4 border-t border-dashed border-gray-300/30">
         <button
            onClick={() => setConfig({
-              layout: LayoutTheme.Base,
+              layout: 'Base',
               primaryColor: '#07c160',
               codeTheme: 'vsDark',
               macCodeBlock: true,
@@ -249,7 +250,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
               indent: false,
               justify: true,
               captionType: 'title',
-              fontSize: FontSize.Medium,
+              fontSize: 'Medium',
               lineHeight: 'comfortable'
            })}
            className="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"

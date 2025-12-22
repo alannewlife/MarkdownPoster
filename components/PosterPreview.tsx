@@ -9,6 +9,7 @@ import { getThemeStyles, getFontSizeClass, getLayoutClass, getFramePaddingClass 
 import { StableImage } from './StableImage';
 import { remarkRuby } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
+import { ThemeRegistry } from '../utils/themeRegistry';
 
 interface PosterPreviewProps {
   markdown: string;
@@ -64,33 +65,36 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
           >
             
             <div className={`w-full ${currentStyle.card}`}>
-              {theme === BorderTheme.MacOS && (
-                <div className={currentStyle.header}>
-                  <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
-                  <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
-                  <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
-                </div>
-              )}
+              
+              {/* Dynamic Header Rendering based on YAML flags */}
+              {currentStyle.header && (
+                  <div className={currentStyle.header}>
+                      {/* Case 1: MacOS Dots */}
+                      {currentStyle.dots && (
+                        <>
+                          <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
+                          <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
+                          <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
+                        </>
+                      )}
 
-              {theme === BorderTheme.Sunset && (
-                <div className={currentStyle.header}>
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                      <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                    </div>
-                </div>
-              )}
+                      {/* Case 2: Custom 'Sunset' Header */}
+                      {currentStyle.customHeader === 'sunset' && (
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                          <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                        </div>
+                      )}
 
-              {theme === BorderTheme.Candy && (
-                <div className={currentStyle.header}>
-                    <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
-                    <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
-                    <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
-                </div>
-              )}
-
-              {theme === BorderTheme.Ocean && (
-                <div className={currentStyle.header}></div>
+                      {/* Case 3: Custom 'Candy' Header */}
+                      {currentStyle.customHeader === 'candy' && (
+                        <>
+                            <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
+                            <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
+                            <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
+                        </>
+                      )}
+                  </div>
               )}
               
               <div 
@@ -121,7 +125,7 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
 
             {showWatermark && (
               <div className={`mt-6 opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor} ${watermarkAlign}`}>
-                {watermarkText || "人人智学社 rrzxs.com"}
+                {watermarkText || "输入您的署名"}
               </div>
             )}
 

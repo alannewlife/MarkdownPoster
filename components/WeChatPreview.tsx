@@ -1,4 +1,3 @@
-
 import React, { useMemo, forwardRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -68,7 +67,7 @@ const getDynamicStyles = (layout: LayoutTheme, primaryColor: string) => {
 
     switch(layout) {
         // --- VIBRANT LAYOUT ---
-        case LayoutTheme.Vibrant:
+        case 'Vibrant':
             return {
                 h1: { ...commonHeader, textAlign: 'center' as const, borderBottom: `2px solid ${primaryColor}`, paddingBottom: '0.5em', color: primaryColor }, 
                 // H2: Pill Shape with White Text
@@ -82,7 +81,7 @@ const getDynamicStyles = (layout: LayoutTheme, primaryColor: string) => {
             };
 
         // --- CLASSIC LAYOUT ---
-        case LayoutTheme.Classic:
+        case 'Classic':
             return {
                 h1: { ...commonHeader, textAlign: 'center' as const, color: '#1f2937', letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e5', paddingBottom: '1em' },
                 // H2: Top/Bottom Border Lines
@@ -95,7 +94,7 @@ const getDynamicStyles = (layout: LayoutTheme, primaryColor: string) => {
             };
 
         // --- STANDARD / BASE LAYOUT ---
-        case LayoutTheme.Base:
+        case 'Base':
         default:
             return {
                 h1: { ...commonHeader, borderBottom: '1px solid #e5e5e5', paddingBottom: '0.5em', color: '#111' },
@@ -120,7 +119,7 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
   onScroll
 }, ref) => {
   
-  const themeStyle = useMemo(() => getDynamicStyles(config.layout || LayoutTheme.Base, config.primaryColor || '#07c160'), [config.layout, config.primaryColor]);
+  const themeStyle = useMemo(() => getDynamicStyles(config.layout || 'Base', config.primaryColor || '#07c160'), [config.layout, config.primaryColor]);
 
   // Determine actual font size in pixels using centralized helper
   const baseFontSize = useMemo(() => {
@@ -151,7 +150,7 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
       textAlign: (config.justify ? 'justify' : 'left') as any,
       maxWidth: '100%',
       boxSizing: 'border-box' as const,
-      fontFamily: config.layout === LayoutTheme.Classic ? '"Songti SC", "Noto Serif SC", serif' : '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", Arial, sans-serif'
+      fontFamily: config.layout === 'Classic' ? '"Songti SC", "Noto Serif SC", serif' : '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", Arial, sans-serif'
   };
 
   // 1. Process Markdown for Footnotes & Header Info

@@ -1,36 +1,11 @@
 
-export enum BorderTheme {
-  Minimal = 'Minimal',
-  MacOS = 'MacOS',
-  Neon = 'Neon',
-  Sketch = 'Sketch',
-  Retro = 'Retro',
-  Glass = 'Glass',
-  // New Colorful Themes
-  Sunset = 'Sunset',
-  Ocean = 'Ocean',
-  Candy = 'Candy',
-  // New Attachment/Poster Mode
-  Poster = 'Poster'
-}
+// Themes and configurations are now loaded dynamically from YAML.
+// We use string types instead of Enums to allow for easy extension without code changes.
 
-export enum LayoutTheme {
-  Base = 'Base',
-  Classic = 'Classic',
-  Vibrant = 'Vibrant'
-}
-
-export enum FontSize {
-  Small = 'Small',
-  Medium = 'Medium',
-  Large = 'Large'
-}
-
-export enum PaddingSize {
-  Narrow = 'Narrow',
-  Medium = 'Medium',
-  Wide = 'Wide'
-}
+export type BorderTheme = string;
+export type LayoutTheme = string;
+export type FontSize = string;
+export type PaddingSize = string;
 
 export enum WatermarkAlign {
   Left = 'text-left',
@@ -62,7 +37,7 @@ export enum WeChatTheme {
 }
 
 export interface WeChatConfig {
-  layout: LayoutTheme;    // Standard, Classic, Vibrant
+  layout: LayoutTheme;    // Standard, Classic, Vibrant (now strings)
   primaryColor: string;   // Hex color for the theme
   codeTheme: string;      // e.g., 'dracula', 'github', 'vsDark', 'vsLight'
   macCodeBlock: boolean;
@@ -71,7 +46,7 @@ export interface WeChatConfig {
   indent: boolean;        // 2em indent
   justify: boolean;       // text-align: justify
   captionType: 'title' | 'alt' | 'none';
-  fontSize: FontSize; // Changed to Enum for S/M/L
+  fontSize: FontSize;     // Now a string (Small, Medium, Large)
   lineHeight: 'compact' | 'comfortable'; // New line height setting
 }
 
