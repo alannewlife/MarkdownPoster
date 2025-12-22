@@ -1,4 +1,3 @@
-
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -42,9 +41,15 @@ export const WritingPreview: React.FC<WritingPreviewProps> = ({
         onScroll={onScroll}
         className={`absolute inset-0 overflow-y-auto overflow-x-hidden ${
             visible ? 'z-10 visible' : 'z-0 invisible'
-        } px-8 md:px-16`}
+        }`}
     >
-       <div className={`w-full max-w-4xl mx-auto py-16 min-h-full origin-center transition-all duration-300 ease-out delay-75 ${
+       {/* 
+          Updated Layout:
+          - w-[90%] md:w-[85%]: Takes up a proportional width of the container.
+          - max-w-7xl: Allows expansion up to ~1280px (significantly larger than before).
+          - mx-auto: Centers the content.
+       */}
+       <div className={`w-[90%] md:w-[85%] max-w-7xl mx-auto py-12 min-h-full origin-center transition-all duration-300 ease-out delay-75 ${
            visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
        }`}>
           <div className={`prose max-w-none ${proseClass} ${getFontSizeClass(fontSize)}`}>
