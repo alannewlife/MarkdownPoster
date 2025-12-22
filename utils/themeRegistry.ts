@@ -8,8 +8,7 @@ export interface ThemeDef extends BorderStyleConfig {
     name: string;
     preview: string; // Tailwind class for small preview circle
     isDark?: boolean; // If true, UI might adjust contrast
-    dots?: boolean; // MacOS style dots
-    customHeader?: string; // For specific header renderings like Sunset/Candy
+    customHeader?: string; // For specific header renderings like macos/sunset/candy
 }
 
 export interface LayoutDef {

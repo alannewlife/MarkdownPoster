@@ -2,6 +2,7 @@
 import React from 'react';
 import { BorderTheme, FontSize, LayoutTheme, PaddingSize, WatermarkAlign } from '../types';
 import { ThemeRegistry } from '../utils/themeRegistry';
+import { HEADER_PRESETS } from '../config/headerPresets';
 
 interface AppearancePopoverProps {
   currentTheme: BorderTheme;
@@ -82,9 +83,27 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
                 ${isDarkMode ? 'ring-offset-[#21252b]' : 'ring-offset-white'}
               `}
             >
+               {/* 
+                  Feature: Miniature Header Preview 
+                  If the theme has a customHeader defined (like macos, sunset), render it here as a visual cue.
+               */}
+               {t.customHeader && HEADER_PRESETS[t.customHeader] && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                      <div className={`w-full h-5 border-y flex items-center justify-center opacity-80 backdrop-blur-[1px] ${
+                          t.isDark ? 'bg-white/10 border-white/20' : 'bg-black/5 border-black/5'
+                      }`}>
+                          {/* Scale down the JSX preset to fit the tiny thumbnail */}
+                          <div className="flex gap-1 transform scale-50">
+                              {HEADER_PRESETS[t.customHeader]}
+                          </div>
+                      </div>
+                  </div>
+               )}
+
+               {/* Active State Indicator (Blue Dot) */}
                {currentTheme === t.id && (
-                 <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                    <div className="w-2 h-2 bg-white rounded-full shadow-sm"></div>
+                 <div className="absolute inset-0 flex items-center justify-center z-20">
+                    <div className="w-2.5 h-2.5 bg-blue-500 rounded-full shadow-sm ring-2 ring-white"></div>
                  </div>
                )}
             </button>

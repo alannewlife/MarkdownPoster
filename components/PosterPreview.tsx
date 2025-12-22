@@ -10,6 +10,7 @@ import { StableImage } from './StableImage';
 import { remarkRuby } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
 import { ThemeRegistry } from '../utils/themeRegistry';
+import { HEADER_PRESETS } from '../config/headerPresets'; // Import the new registry
 
 interface PosterPreviewProps {
   markdown: string;
@@ -66,34 +67,11 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
             
             <div className={`w-full ${currentStyle.card}`}>
               
-              {/* Dynamic Header Rendering based on YAML flags */}
+              {/* Dynamic Header Rendering based on Config Presets */}
               {currentStyle.header && (
                   <div className={currentStyle.header}>
-                      {/* Case 1: MacOS Dots */}
-                      {currentStyle.dots && (
-                        <>
-                          <div className="w-3 h-3 rounded-full bg-[#ff5f56] border border-[#e0443e]"></div>
-                          <div className="w-3 h-3 rounded-full bg-[#ffbd2e] border border-[#dea123]"></div>
-                          <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29]"></div>
-                        </>
-                      )}
-
-                      {/* Case 2: Custom 'Sunset' Header */}
-                      {currentStyle.customHeader === 'sunset' && (
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                          <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                        </div>
-                      )}
-
-                      {/* Case 3: Custom 'Candy' Header */}
-                      {currentStyle.customHeader === 'candy' && (
-                        <>
-                            <div className="w-4 h-4 rounded-full bg-pink-400 border-2 border-white"></div>
-                            <div className="w-4 h-4 rounded-full bg-yellow-400 border-2 border-white"></div>
-                            <div className="w-4 h-4 rounded-full bg-blue-400 border-2 border-white"></div>
-                        </>
-                      )}
+                      {/* Look up the preset from the registry based on the string key */}
+                      {currentStyle.customHeader && HEADER_PRESETS[currentStyle.customHeader]}
                   </div>
               )}
               
