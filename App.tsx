@@ -640,6 +640,7 @@ export default function App() {
   const [formatCanScrollLeft, setFormatCanScrollLeft] = useState(false);
   const [formatCanScrollRight, setFormatCanScrollRight] = useState(false);
   const formatToolbarRef = useRef<HTMLDivElement>(null);
+  const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const checkFormatScroll = useCallback(() => {
     if (formatToolbarRef.current) {
@@ -661,12 +662,29 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [leftWidth, checkFormatScroll]);
   
-  const scrollFormatToolbar = (direction: 'left' | 'right') => {
-    if (formatToolbarRef.current) {
-        const scrollAmount = 150;
-        formatToolbarRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+  const startScrolling = useCallback((direction: 'left' | 'right') => {
+    if (scrollIntervalRef.current) return;
+    
+    const step = direction === 'left' ? -5 : 5;
+    
+    scrollIntervalRef.current = setInterval(() => {
+        if (formatToolbarRef.current) {
+            formatToolbarRef.current.scrollLeft += step;
+        }
+    }, 10);
+  }, []);
+
+  const stopScrolling = useCallback(() => {
+    if (scrollIntervalRef.current) {
+        clearInterval(scrollIntervalRef.current);
+        scrollIntervalRef.current = null;
     }
-  };
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+      return () => stopScrolling();
+  }, [stopScrolling]);
 
   return (
     <div className={`flex flex-col h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#23272e]' : 'bg-white'}`}>
@@ -716,8 +734,10 @@ export default function App() {
                     <div className={`absolute inset-0 bg-gradient-to-r ${isDarkMode ? 'from-[#1e2227] via-[#1e2227] to-transparent' : 'from-[#f4f2eb] via-[#f4f2eb] to-transparent'}`} />
                     {/* Arrow Button */}
                     <button 
-                      onClick={(e) => { e.stopPropagation(); scrollFormatToolbar('left'); }}
-                      className={`relative z-20 w-4 h-full flex items-center justify-center pointer-events-auto hover:scale-110 transition-transform ${isDarkMode ? 'text-[#abb2bf]' : 'text-gray-500'}`}
+                      onMouseEnter={() => startScrolling('left')}
+                      onMouseLeave={stopScrolling}
+                      onMouseDown={(e) => e.preventDefault()}
+                      className={`relative z-20 w-4 h-full flex items-center justify-center pointer-events-auto hover:scale-110 transition-transform ${isDarkMode ? 'text-[#abb2bf]' : 'text-gray-500'} ${!formatCanScrollLeft ? 'pointer-events-none' : ''}`}
                     >
                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
                     </button>
@@ -755,8 +775,10 @@ export default function App() {
                     <div className={`absolute inset-0 bg-gradient-to-l ${isDarkMode ? 'from-[#1e2227] via-[#1e2227] to-transparent' : 'from-[#f4f2eb] via-[#f4f2eb] to-transparent'}`} />
                     {/* Arrow Button */}
                     <button 
-                      onClick={(e) => { e.stopPropagation(); scrollFormatToolbar('right'); }}
-                      className={`relative z-20 w-4 h-full flex items-center justify-center pointer-events-auto hover:scale-110 transition-transform ${isDarkMode ? 'text-[#abb2bf]' : 'text-gray-500'}`}
+                      onMouseEnter={() => startScrolling('right')}
+                      onMouseLeave={stopScrolling}
+                      onMouseDown={(e) => e.preventDefault()}
+                      className={`relative z-20 w-4 h-full flex items-center justify-center pointer-events-auto hover:scale-110 transition-transform ${isDarkMode ? 'text-[#abb2bf]' : 'text-gray-500'} ${!formatCanScrollRight ? 'pointer-events-none' : ''}`}
                     >
                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
                     </button>
