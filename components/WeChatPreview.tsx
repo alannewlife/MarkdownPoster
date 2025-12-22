@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Highlight, themes } from 'prism-react-renderer';
-import { WeChatConfig, WeChatTheme, FontSize } from '../types';
+import { WeChatConfig, LayoutTheme, FontSize } from '../types';
 import { getWeChatFontSize, getWeChatLineHeight } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
 import { remarkRuby } from '../utils/markdownPlugins';
@@ -34,10 +34,23 @@ const getPrismTheme = (themeName: string) => {
     }
 };
 
-// --- INLINE STYLE DEFINITIONS ---
-// WeChat editor removes classNames, so we must use explicit style objects.
+// --- HELPER: Color manipulation ---
+const hexToRgba = (hex: string, alpha: number) => {
+    let c: any;
+    if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+        c= hex.substring(1).split('');
+        if(c.length== 3){
+            c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+        }
+        c= '0x'+c.join('');
+        return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
+    }
+    return hex; // Fallback
+}
 
-const getThemeStyles = (theme: WeChatTheme) => {
+// --- INLINE STYLE DEFINITIONS ---
+// Dynamically generate styles based on Layout and Color
+const getDynamicStyles = (layout: LayoutTheme, primaryColor: string) => {
     const commonHeader = { fontWeight: 'bold', marginTop: '1.5em', marginBottom: '1em', lineHeight: '1.4' };
     const commonBlockquote = { 
         paddingLeft: '1em',
@@ -49,47 +62,49 @@ const getThemeStyles = (theme: WeChatTheme) => {
         borderRadius: '4px'
     };
 
-    switch(theme) {
-        case WeChatTheme.Lovely:
+    // Derived Colors
+    const faintBg = hexToRgba(primaryColor, 0.08); // Very light background
+    const borderBg = hexToRgba(primaryColor, 0.2); // Light border
+
+    switch(layout) {
+        // --- VIBRANT LAYOUT ---
+        case LayoutTheme.Vibrant:
             return {
-                h1: { ...commonHeader, borderBottom: '2px solid #f9a8d4', color: '#ec4899', paddingBottom: '0.5em', textAlign: 'center' as const }, 
-                h2: { ...commonHeader, borderLeft: '4px solid #f472b6', paddingLeft: '0.5em', color: '#db2777', backgroundColor: '#fdf2f8', paddingRight: '0.5em', paddingTop: '0.2em', paddingBottom: '0.2em', borderRadius: '0 4px 4px 0', display: 'inline-block' }, 
-                h3: { ...commonHeader, color: '#ec4899' },
-                list: { color: '#ec4899' },
-                blockquote: { ...commonBlockquote, borderLeft: '4px solid #f9a8d4', backgroundColor: '#fdf2f8', color: '#4b5563' },
-                link: { color: '#ec4899', borderBottom: '1px solid #f9a8d4', textDecoration: 'none' },
-                hr: { border: '0', borderTop: '2px dashed #fbcfe8', margin: '2em 0' },
+                h1: { ...commonHeader, textAlign: 'center' as const, borderBottom: `2px solid ${primaryColor}`, paddingBottom: '0.5em', color: primaryColor }, 
+                // H2: Pill Shape with White Text
+                h2: { ...commonHeader, background: primaryColor, color: 'white', padding: '0.2em 1em', borderRadius: '20px', display: 'inline-block', boxShadow: `0 2px 5px ${hexToRgba(primaryColor, 0.3)}` },
+                h3: { ...commonHeader, color: primaryColor, borderLeft: `4px solid ${primaryColor}`, paddingLeft: '0.5em' },
+                list: { color: primaryColor },
+                // Blockquote: Full Colored Box
+                blockquote: { ...commonBlockquote, backgroundColor: faintBg, color: '#334155', borderLeft: `4px solid ${primaryColor}` }, 
+                link: { color: primaryColor, fontWeight: 'bold', textDecoration: 'none', borderBottom: `1px dashed ${primaryColor}` },
+                hr: { border: '0', borderTop: `1px solid ${borderBg}`, margin: '2em 0' },
             };
-        case WeChatTheme.Tech:
+
+        // --- CLASSIC LAYOUT ---
+        case LayoutTheme.Classic:
             return {
-                h1: { ...commonHeader, textAlign: 'center' as const, borderBottom: '2px solid #2563eb', paddingBottom: '0.5em', color: '#1e40af' }, 
-                h2: { ...commonHeader, background: 'linear-gradient(90deg, #2563eb, #60a5fa)', color: 'white', padding: '0.2em 1em', borderRadius: '4px', display: 'inline-block', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' },
-                h3: { ...commonHeader, color: '#1d4ed8', borderLeft: '4px solid #2563eb', paddingLeft: '0.5em' },
-                list: { color: '#2563eb' },
-                // Updated Tech Blockquote: Light blue background, dark slate text
-                blockquote: { ...commonBlockquote, backgroundColor: '#eff6ff', color: '#334155', borderLeft: '4px solid #3b82f6' }, 
-                link: { color: '#2563eb', fontWeight: 'bold', textDecoration: 'none' },
-                hr: { border: '0', borderTop: '1px solid #bfdbfe', margin: '2em 0' },
-            };
-        case WeChatTheme.Simple:
-            return {
-                h1: { ...commonHeader, textAlign: 'center' as const, color: '#1f2937', letterSpacing: '0.2em', borderBottom: '2px solid #000', paddingBottom: '1em' },
-                h2: { ...commonHeader, textAlign: 'center' as const, color: '#111827', borderTop: '1px solid #e5e5e5', borderBottom: '1px solid #e5e5e5', padding: '0.5em 0' },
-                h3: { ...commonHeader, color: '#1f2937' },
-                list: { color: '#000' },
-                blockquote: { ...commonBlockquote, borderLeft: '3px solid #000', fontStyle: 'italic', color: '#4b5563', backgroundColor: 'transparent' },
-                link: { color: '#1f2937', textDecoration: 'underline', textUnderlineOffset: '4px' },
+                h1: { ...commonHeader, textAlign: 'center' as const, color: '#1f2937', letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e5', paddingBottom: '1em' },
+                // H2: Top/Bottom Border Lines
+                h2: { ...commonHeader, textAlign: 'center' as const, color: primaryColor, borderTop: `1px solid ${primaryColor}`, borderBottom: `1px solid ${primaryColor}`, padding: '0.5em 0', display: 'block', width: '100%' },
+                h3: { ...commonHeader, color: '#374151', fontWeight: 'bold' },
+                list: { color: primaryColor },
+                blockquote: { ...commonBlockquote, borderLeft: 'none', borderTop: `2px solid ${primaryColor}`, borderBottom: `2px solid ${primaryColor}`, fontStyle: 'italic', color: '#4b5563', backgroundColor: 'transparent', textAlign: 'center' as const },
+                link: { color: primaryColor, textDecoration: 'underline', textUnderlineOffset: '4px' },
                 hr: { border: '0', borderTop: '1px solid #111827', margin: '2em 0' },
             };
-        case WeChatTheme.Default:
+
+        // --- STANDARD / BASE LAYOUT ---
+        case LayoutTheme.Base:
         default:
             return {
-                h1: { ...commonHeader, borderBottom: '1px solid #e5e5e5', paddingBottom: '0.5em' },
-                h2: { ...commonHeader, borderLeft: '4px solid #07c160', paddingLeft: '0.5em', color: '#07c160' },
-                h3: { ...commonHeader, color: '#07c160' },
-                list: { color: '#07c160' },
-                blockquote: { ...commonBlockquote, borderLeft: '4px solid #d1d5db', backgroundColor: '#f9fafb', color: '#6b7280' },
-                link: { color: '#576b95', textDecoration: 'none' },
+                h1: { ...commonHeader, borderBottom: '1px solid #e5e5e5', paddingBottom: '0.5em', color: '#111' },
+                // H2: Left Thick Border
+                h2: { ...commonHeader, borderLeft: `4px solid ${primaryColor}`, paddingLeft: '0.5em', color: primaryColor },
+                h3: { ...commonHeader, color: '#333', fontWeight: 'bold' },
+                list: { color: primaryColor },
+                blockquote: { ...commonBlockquote, borderLeft: `4px solid ${hexToRgba(primaryColor, 0.4)}`, backgroundColor: '#f9fafb', color: '#6b7280' },
+                link: { color: primaryColor, textDecoration: 'none' },
                 hr: { border: '0', borderTop: '1px solid #e5e5e5', margin: '2em 0' },
             };
     }
@@ -105,7 +120,7 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
   onScroll
 }, ref) => {
   
-  const themeStyle = getThemeStyles(config.theme || WeChatTheme.Default);
+  const themeStyle = useMemo(() => getDynamicStyles(config.layout || LayoutTheme.Base, config.primaryColor || '#07c160'), [config.layout, config.primaryColor]);
 
   // Determine actual font size in pixels using centralized helper
   const baseFontSize = useMemo(() => {
@@ -135,7 +150,8 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
       color: '#333333',
       textAlign: (config.justify ? 'justify' : 'left') as any,
       maxWidth: '100%',
-      boxSizing: 'border-box' as const
+      boxSizing: 'border-box' as const,
+      fontFamily: config.layout === LayoutTheme.Classic ? '"Songti SC", "Noto Serif SC", serif' : '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", Arial, sans-serif'
   };
 
   // 1. Process Markdown for Footnotes & Header Info
@@ -200,7 +216,7 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
             }}>
                 {checked ? (
                     <svg viewBox="0 0 24 24" fill="none" style={{width: '100%', height: '100%'}}>
-                       <rect x="2" y="2" width="20" height="20" rx="4" fill="#d1d5db" />
+                       <rect x="2" y="2" width="20" height="20" rx="4" fill={config.primaryColor} />
                        <path d="M7 12l3 3l7-7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                 ) : (
@@ -320,6 +336,10 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
             );
         }
 
+        // Faint background based on primary color for inline code
+        const inlineCodeBg = hexToRgba(config.primaryColor, 0.1);
+        const inlineCodeColor = config.primaryColor;
+
         return (
             <code 
               style={{ 
@@ -329,9 +349,8 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
                   fontFamily: 'Monaco, Consolas, monospace',
                   fontSize: '0.9em',
                   fontWeight: '600',
-                  // Updated Inline Code Style: Neutral gray background and dark gray text
-                  backgroundColor: '#f3f4f6', // gray-100
-                  color: '#1f2937',           // gray-800
+                  backgroundColor: inlineCodeBg, // Dynamic BG
+                  color: inlineCodeColor,         // Dynamic Color
                   ...props.style
               }}
               {...props}

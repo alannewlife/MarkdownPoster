@@ -31,9 +31,9 @@ export const WritingPreview: React.FC<WritingPreviewProps> = ({
 }) => {
   
   // Use isDarkMode to determine text styling, ensuring readability against the app's background.
-  // We remove currentStyle.frame to let the parent's background (gray/dark) show through without dots.
+  // We explicitly target lists (ul, ol, li), tables (th, td), and math (katex) to ensure they use the visible text color in dark mode.
   const proseClass = isDarkMode 
-    ? 'prose-invert prose-p:text-[#abb2bf] prose-headings:text-[#d4cfbf] prose-a:text-[#61afef] prose-strong:text-[#d19a66] prose-code:text-[#98c379]' 
+    ? 'prose-invert prose-p:text-[#abb2bf] prose-headings:text-[#d4cfbf] prose-a:text-[#61afef] prose-strong:text-[#d19a66] prose-code:text-[#98c379] prose-ul:text-[#abb2bf] prose-ol:text-[#abb2bf] prose-li:text-[#abb2bf] prose-th:text-[#abb2bf] prose-td:text-[#abb2bf] prose-blockquote:text-[#abb2bf] [&_.katex]:text-[#abb2bf] [&_.katex-html]:text-[#abb2bf] [&_.katex-display]:text-[#abb2bf] prose-tr:border-[#3e4451] prose-thead:border-[#3e4451]' 
     : 'prose-slate prose-lg text-gray-800 prose-headings:text-gray-900';
 
   return (

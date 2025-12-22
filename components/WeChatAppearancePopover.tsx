@@ -1,11 +1,6 @@
 
-
-
-
-
-
 import React from 'react';
-import { WeChatConfig, WeChatTheme, FontSize } from '../types';
+import { WeChatConfig, LayoutTheme, FontSize } from '../types';
 
 interface WeChatAppearancePopoverProps {
   config: WeChatConfig;
@@ -23,11 +18,21 @@ const CodeThemes = [
   { label: 'Oceanic', value: 'oceanicNext' },
 ];
 
-const ThemeOptions = [
-  { label: '经典', value: WeChatTheme.Default, color: 'bg-[#07c160]' },
-  { label: '粉嫩', value: WeChatTheme.Lovely, color: 'bg-pink-400' },
-  { label: '科技', value: WeChatTheme.Tech, color: 'bg-blue-600' },
-  { label: '极简', value: WeChatTheme.Simple, color: 'bg-gray-800' },
+const LayoutLabels: Record<LayoutTheme, string> = {
+    [LayoutTheme.Base]: '标准',
+    [LayoutTheme.Classic]: '经典',
+    [LayoutTheme.Vibrant]: '活泼'
+};
+
+const ColorPresets = [
+    { color: '#07c160', label: '微信绿' },
+    { color: '#997343', label: '雅致金' },
+    { color: '#3b82f6', label: '科技蓝' },
+    { color: '#6366f1', label: '睿智紫' },
+    { color: '#ec4899', label: '活力粉' },
+    { color: '#f59e0b', label: '暖阳橙' },
+    { color: '#ef4444', label: '中国红' },
+    { color: '#1f2937', label: '极简黑' },
 ];
 
 export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = ({
@@ -55,29 +60,57 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
         </button>
       </div>
 
-      {/* 1. Theme Selection */}
+      {/* 1. Layout Category (Segmented Control) */}
       <div className="mb-6">
-        <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">主题风格</label>
-        <div className="grid grid-cols-4 gap-2">
-          {ThemeOptions.map((t) => (
+        <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">排版风格</label>
+        <div className={`flex p-1 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
+          {Object.values(LayoutTheme).map((lt) => (
             <button
-              key={t.value}
-              onClick={() => updateConfig('theme', t.value)}
-              className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all
-                 ${config.theme === t.value
-                    ? (isDarkMode ? 'bg-[#3e4451] border-[#07c160] ring-1 ring-[#07c160]' : 'bg-green-50 border-green-500 ring-1 ring-green-500')
-                    : (isDarkMode ? 'bg-[#2c313a] border-[#181a1f] hover:bg-[#323842]' : 'bg-gray-50 border-gray-200 hover:bg-gray-100')
-                 }
-              `}
+              key={lt}
+              onClick={() => updateConfig('layout', lt)}
+              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
+                config.layout === lt
+                  ? (isDarkMode ? 'bg-[#3e4451] text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
+                  : 'opacity-60 hover:opacity-100'
+              }`}
             >
-               <div className={`w-6 h-6 rounded-full shadow-sm ${t.color}`}></div>
-               <span className="text-[10px] font-medium opacity-80">{t.label}</span>
+              {LayoutLabels[lt]}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 2. Typography Controls (Font Size & Line Height) */}
+      {/* 2. Theme Color Picker */}
+      <div className="mb-6">
+          <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">主题色</label>
+          <div className="flex flex-wrap gap-2.5">
+             {ColorPresets.map((preset) => (
+                 <button
+                    key={preset.color}
+                    onClick={() => updateConfig('primaryColor', preset.color)}
+                    title={preset.label}
+                    className={`w-6 h-6 rounded-full shadow-sm transition-transform hover:scale-110 relative ${
+                        config.primaryColor.toLowerCase() === preset.color.toLowerCase() 
+                        ? 'ring-2 ring-offset-2 ring-blue-400 scale-110' 
+                        : 'border border-gray-100'
+                    } ${isDarkMode ? 'ring-offset-[#21252b] border-[#3e4451]' : 'ring-offset-white'}`}
+                    style={{ backgroundColor: preset.color }}
+                 />
+             ))}
+             {/* Custom Color Input */}
+             <div className="relative w-6 h-6 rounded-full overflow-hidden shadow-sm border cursor-pointer hover:scale-110 transition-transform flex items-center justify-center bg-gradient-to-br from-red-400 via-green-400 to-blue-400">
+                 <input 
+                    type="color" 
+                    value={config.primaryColor}
+                    onChange={(e) => updateConfig('primaryColor', e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    title="自定义颜色"
+                 />
+             </div>
+          </div>
+      </div>
+
+      {/* 3. Typography Controls (Font Size & Line Height) */}
       <div className="mb-5 space-y-3">
         {/* Font Size */}
         <div className="flex items-center justify-between">
@@ -127,7 +160,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
         </div>
       </div>
 
-      {/* 3. Code Block Theme */}
+      {/* 4. Code Block Theme */}
       <div className="mb-5">
         <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">代码块主题</label>
         <div className="relative">
@@ -150,7 +183,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
         </div>
       </div>
 
-      {/* 4. Caption Format */}
+      {/* 5. Caption Format */}
       <div className="mb-5">
         <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">图注格式</label>
         <div className={`flex p-1 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
@@ -174,7 +207,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
         </div>
       </div>
 
-      {/* 5. Toggles */}
+      {/* 6. Toggles */}
       <div className="space-y-3">
         {[
            { label: 'Mac 代码块', key: 'macCodeBlock' },
@@ -207,7 +240,8 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
       <div className="mt-6 pt-4 border-t border-dashed border-gray-300/30">
         <button
            onClick={() => setConfig({
-              theme: WeChatTheme.Default,
+              layout: LayoutTheme.Base,
+              primaryColor: '#07c160',
               codeTheme: 'vsDark',
               macCodeBlock: true,
               lineNumbers: true,

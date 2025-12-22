@@ -1,9 +1,4 @@
 
-
-
-
-
-
 export enum BorderTheme {
   Minimal = 'Minimal',
   MacOS = 'MacOS',
@@ -58,6 +53,7 @@ export interface BorderStyleConfig {
   watermarkColor: string; // Color of the watermark text on the frame
 }
 
+// Deprecated: Kept for migration types if needed, but not used in UI
 export enum WeChatTheme {
   Default = 'Default',
   Lovely = 'Lovely',
@@ -66,7 +62,8 @@ export enum WeChatTheme {
 }
 
 export interface WeChatConfig {
-  theme: WeChatTheme; // Visual theme for WeChat
+  layout: LayoutTheme;    // Standard, Classic, Vibrant
+  primaryColor: string;   // Hex color for the theme
   codeTheme: string;      // e.g., 'dracula', 'github', 'vsDark', 'vsLight'
   macCodeBlock: boolean;
   lineNumbers: boolean;
