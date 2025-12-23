@@ -2,11 +2,12 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkDirective from 'remark-directive';
 import rehypeKatex from 'rehype-katex';
 import { FontSize } from '../types';
 import { getFontSizeClass } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
-import { remarkRuby } from '../utils/markdownPlugins';
+import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
 
 interface WritingPreviewProps {
@@ -54,7 +55,7 @@ export const WritingPreview: React.FC<WritingPreviewProps> = ({
        }`}>
           <div className={`prose max-w-none ${proseClass} ${getFontSizeClass(fontSize)}`}>
               <ReactMarkdown 
-                remarkPlugins={[remarkGfm, remarkMath, remarkRuby]}
+                remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkRuby, remarkCenter]}
                 rehypePlugins={[rehypeKatex]}
                 urlTransform={(value) => value}
                 components={{

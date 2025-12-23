@@ -2,12 +2,13 @@ import React, { useMemo, forwardRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkDirective from 'remark-directive';
 import rehypeKatex from 'rehype-katex';
 import { Highlight, themes } from 'prism-react-renderer';
 import { WeChatConfig, LayoutTheme, FontSize } from '../types';
 import { getWeChatFontSize, getWeChatLineHeight } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
-import { remarkRuby } from '../utils/markdownPlugins';
+import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
 
 interface WeChatPreviewProps {
@@ -537,7 +538,7 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
                         {/* Main Content */}
                         <div className="flex-1 px-4 pb-12 wechat-content">
                             <ReactMarkdown 
-                                remarkPlugins={[remarkGfm, remarkMath, remarkRuby]}
+                                remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkRuby, remarkCenter]}
                                 rehypePlugins={[rehypeKatex]}
                                 components={components}
                                 urlTransform={(value) => value} // IMPORTANT: Allow local:// protocol for StableImage

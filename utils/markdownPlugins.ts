@@ -88,3 +88,52 @@ export function remarkRuby() {
     });
   };
 }
+
+/**
+ * Remark Plugin: Center Directive
+ * Support for :::center ... ::: syntax
+ */
+export function remarkCenter() {
+  return (tree: any) => {
+    visit(tree, (node) => {
+      if (
+        node.type === 'containerDirective' ||
+        node.type === 'leafDirective' ||
+        node.type === 'textDirective'
+      ) {
+        if (node.name !== 'center') return;
+
+        const data = node.data || (node.data = {});
+        const tagName = node.type === 'textDirective' ? 'span' : 'div';
+
+        data.hName = tagName;
+        data.hProperties = {
+            style: { 
+                textAlign: 'center', 
+                display: node.type === 'textDirective' ? 'inline-block' : 'block',
+                width: '100%' // Ensure div takes full width to center content effectively
+            },
+            className: 'center-aligned-block'
+        };
+
+        // For container directives, we need to enforce centering on child paragraphs
+        // This is crucial because WeChatPreview applies standard styles (like justify/left)
+        // to paragraphs which can override the inherited center alignment from the wrapper div.
+        if (node.type === 'containerDirective' && node.children) {
+            node.children.forEach((child: any) => {
+                if (child.type === 'paragraph') {
+                    const childData = child.data || (child.data = {});
+                    const childProps = childData.hProperties || (childData.hProperties = {});
+                    
+                    // Merge style
+                    childProps.style = {
+                        ...(childProps.style || {}),
+                        textAlign: 'center'
+                    };
+                }
+            });
+        }
+      }
+    });
+  };
+}

@@ -1,16 +1,17 @@
-
 import React, { useMemo, forwardRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkDirective from 'remark-directive';
 import rehypeKatex from 'rehype-katex';
 import { BorderTheme, LayoutTheme, FontSize, PaddingSize, WatermarkAlign } from '../types';
 import { getThemeStyles, getFontSizeClass, getLayoutClass, getFramePaddingClass } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
-import { remarkRuby } from '../utils/markdownPlugins';
+import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
 import { HEADER_PRESETS } from '../config/headerPresets'; 
-import { DECOR_PRESETS } from '../config/decorPresets'; // Import new Decor Presets
+import { DECOR_PRESETS } from '../config/decorPresets'; 
+import { ThemeRegistry } from '../utils/themeRegistry';
 
 interface PosterPreviewProps {
   markdown: string;
@@ -45,82 +46,104 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
   onScroll,
   customThemeColor
 }, ref) => {
-  const currentStyle = useMemo(() => getThemeStyles(theme, customThemeColor), [theme, customThemeColor]);
+  
+  const themeStyle = useMemo(() => getThemeStyles(theme, customThemeColor), [theme, customThemeColor]);
+  
+  const fontSizeClass = getFontSizeClass(fontSize);
+  const layoutClass = getLayoutClass(layoutTheme);
+  const paddingClass = getFramePaddingClass(padding);
 
   return (
     <div 
         ref={containerRef}
         onScroll={onScroll}
-        className={`absolute inset-0 overflow-y-auto flex flex-col items-center [background-size:20px_20px] ${
+        className={`absolute inset-0 overflow-y-auto overflow-x-hidden ${
             visible ? 'z-10 visible' : 'z-0 invisible'
-         } ${
-            isDarkMode 
-              ? 'bg-[radial-gradient(#333842_1px,transparent_1px)]' 
-              : 'bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]'
         }`}
     >
-       <div className={`w-full flex flex-col items-center min-h-min pt-10 pb-24 px-8 origin-center transition-all duration-300 ease-out delay-75 ${
-          visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+       <div className={`w-full min-h-full flex justify-center items-start py-8 sm:py-16 origin-center transition-all duration-300 ease-out delay-75 ${
+           visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
        }`}>
+          {/* Main Poster Frame */}
           <div 
             ref={ref}
-            className={`w-full md:w-[75%] max-w-none flex flex-col ${getFramePaddingClass(padding)} ${currentStyle.frame}`}
-            style={currentStyle.frameStyle}
+            id="poster-node"
+            className={`
+                relative flex flex-col transition-all duration-500 ease-in-out
+                ${paddingClass}
+                ${themeStyle.frame}
+            `}
+            style={{
+                width: '100%',
+                maxWidth: '640px',
+                // Dynamic Frame Styles (Gradients, Images)
+                ...themeStyle.frameStyle
+            }}
           >
-            
-            <div 
-                className={`w-full relative ${currentStyle.card}`} 
-                style={currentStyle.cardStyle} 
-            > 
-              {/* Added 'relative' to ensure decorations position correctly relative to the card */}
-              
-              {/* 1. Custom Decorations (Corners, Frames) */}
-              {currentStyle.customDecor && DECOR_PRESETS[currentStyle.customDecor] && (
-                  <div className="absolute inset-0 pointer-events-none z-10">
-                      {DECOR_PRESETS[currentStyle.customDecor]}
-                  </div>
-              )}
-              
-              {/* 2. Custom Header */}
-              {currentStyle.header && (
-                  <div className={currentStyle.header}>
-                      {currentStyle.customHeader && HEADER_PRESETS[currentStyle.customHeader]}
-                  </div>
-              )}
-              
-              {/* 3. Main Content */}
-              <div 
-                  className={`p-10 prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} ${getLayoutClass(layoutTheme)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none [&>:last-child]:mb-0`}
-              >
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm, remarkMath, remarkRuby]}
-                  rehypePlugins={[rehypeKatex]}
-                  urlTransform={(value) => value}
-                  components={{
-                    img: (props) => <StableImage {...props} imagePool={imagePool} />,
-                    a: ({ node, href, children, ...props }) => {
-                        if (href && href.startsWith('ruby:')) {
-                            const reading = href.replace('ruby:', '');
-                            const decodedReading = decodeURIComponent(reading);
-                            return <RubyRender baseText={children} reading={decodedReading} {...props} />;
-                        }
-                        return <a href={href} {...props}>{children}</a>;
-                    }
-                  }}
-                >
-                  {markdown}
-                </ReactMarkdown>
-              </div>
+            {/* The Card (Inner Container) */}
+            <div className={`
+                relative flex flex-col z-10
+                ${themeStyle.card}
+            `}
+            style={{
+                // Dynamic Card Styles (Border colors, Shadows for Neon/Glass)
+                ...themeStyle.cardStyle
+            }}
+            >
+                {/* 1. Custom Header (If defined in theme) */}
+                {themeStyle.customHeader && HEADER_PRESETS[themeStyle.customHeader] && (
+                    <div className={themeStyle.header}>
+                         {HEADER_PRESETS[themeStyle.customHeader]}
+                    </div>
+                )}
+                
+                {/* 1.1 Custom Decor (If defined in theme) */}
+                {themeStyle.customDecor && DECOR_PRESETS[themeStyle.customDecor] && (
+                     <>
+                        {DECOR_PRESETS[themeStyle.customDecor]}
+                     </>
+                )}
+
+                {/* 2. Content Area */}
+                <div className={`
+                    flex-1
+                    px-8 py-8 sm:px-12 sm:py-10
+                    ${themeStyle.content}
+                    ${layoutClass}
+                `}>
+                    <div className={`prose max-w-none ${themeStyle.prose} ${fontSizeClass}`}>
+                        <ReactMarkdown 
+                            remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkRuby, remarkCenter]}
+                            rehypePlugins={[rehypeKatex]}
+                            urlTransform={(value) => value}
+                            components={{
+                                img: (props) => <StableImage {...props} imagePool={imagePool} />,
+                                a: ({ node, href, children, ...props }) => {
+                                  if (href && href.startsWith('ruby:')) {
+                                      const reading = href.replace('ruby:', '');
+                                      const decodedReading = decodeURIComponent(reading);
+                                      return <RubyRender baseText={children} reading={decodedReading} {...props} />;
+                                  }
+                                  return <a href={href} {...props}>{children}</a>;
+                                }
+                            }}
+                        >
+                            {markdown}
+                        </ReactMarkdown>
+                    </div>
+                </div>
             </div>
 
+            {/* 3. Watermark / Signature */}
             {showWatermark && (
-              <div className={`mt-6 opacity-60 text-[10px] tracking-widest font-bold ${currentStyle.watermarkColor} ${watermarkAlign}`}>
-                {watermarkText || "输入您的署名"}
-              </div>
+                <div className={`mt-6 z-10 ${watermarkAlign} ${themeStyle.watermarkColor}`}>
+                   <div className="text-sm font-medium opacity-80 font-sans tracking-wider">
+                       {watermarkText}
+                   </div>
+                </div>
             )}
-
           </div>
-      </div>
+       </div>
     </div>
   );
 });
