@@ -71,10 +71,6 @@ export const AppearancePopover: React.FC<AppearancePopoverProps> = ({
         </button>
       </div>
 
-      <p className="text-[10px] opacity-60 mb-4 leading-relaxed">
-        自定义当前海报的排版风格、背景主题、字体大小等。
-      </p>
-
       {/* 1. Layout Theme (Moved to Top) */}
       <div className="mb-6">
         <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">排版风格</label>
