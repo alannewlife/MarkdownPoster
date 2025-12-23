@@ -111,7 +111,8 @@ export function remarkCenter() {
             style: { 
                 textAlign: 'center', 
                 display: node.type === 'textDirective' ? 'inline-block' : 'block',
-                width: '100%' // Ensure div takes full width to center content effectively
+                width: '100%', // Ensure div takes full width to center content effectively
+                listStylePosition: 'inside' // [FIX]: Forces list bullets/numbers to center along with the text
             },
             className: 'center-aligned-block'
         };
