@@ -11,70 +11,61 @@ export const DECOR_PRESETS: Record<string, React.ReactNode> = {
   
   // ---------------------------------------------------------------------------
   // [Ink Corners] 水墨/中式转角方框
-  // 效果：精致的小方框(8px)，中心对准边框顶点，模拟榫卯结构
+  // 效果：精致的方框(24px)，中心对准边框顶点，掩盖双线边框的交接处
   // ---------------------------------------------------------------------------
   'ink-corners': (
     <>
        {/* 
          Logic:
-         Square size: w-2 (8px).
-         Position: -top-1 (-4px), -left-1 (-4px).
-         Result: The 8px square is centered exactly on the 0,0 corner of the card.
+         Square size: w-6 (24px).
+         Position: -top-3 (-12px), -left-3 (-12px).
+         Result: The 24px square is centered exactly on the 0,0 corner of the card.
          Bg color matches card to mask the underlying border corner.
+         Border-2 ensures the square itself has a solid definition contrasting the double border.
        */}
-       <div className="absolute -top-1 -left-1 w-2 h-2 border-[1.5px] border-[#57534e] bg-[#fdfbf7] z-10" />
-       <div className="absolute -top-1 -right-1 w-2 h-2 border-[1.5px] border-[#57534e] bg-[#fdfbf7] z-10" />
-       <div className="absolute -bottom-1 -left-1 w-2 h-2 border-[1.5px] border-[#57534e] bg-[#fdfbf7] z-10" />
-       <div className="absolute -bottom-1 -right-1 w-2 h-2 border-[1.5px] border-[#57534e] bg-[#fdfbf7] z-10" />
+       <div className="absolute -top-2 -left-2 w-2 h-2 border-2 border-[#57534e] bg-[#fdfbf7] z-10" />
+       <div className="absolute -top-2 -right-2 w-2 h-2 border-2 border-[#57534e] bg-[#fdfbf7] z-10" />
+       <div className="absolute -bottom-2 -left-2 w-2 h-2 border-2 border-[#57534e] bg-[#fdfbf7] z-10" />
+       <div className="absolute -bottom-2 -right-2 w-2 h-2 border-2 border-[#57534e] bg-[#fdfbf7] z-10" />
     </>
   ),
 
   // ---------------------------------------------------------------------------
-  // [Baroque Corners] -> [Simple Western] 简约西式
-  // 效果：经典的双线转角 (Classic Double Bracket)
-  // 风格：简约、西式、优雅 (Simple, Western, Elegant)
+  // [Modern Deco] 现代雅致/新复古简约风格
+  // 效果：顶部两侧的双线极简圆弧，呈现西方简约杂志风格
   // ---------------------------------------------------------------------------
-  'baroque-corners': (
+  'modern-deco': (
     <>
-        {/* Top Left */}
-        {/* Color: SaddleBrown / Dark Bronze */}
-        <div className="absolute top-3 left-3 w-12 h-12 pointer-events-none text-[#78350f] opacity-80 z-10">
-            <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" className="w-full h-full drop-shadow-sm">
-                {/* Outer Bracket (Thicker) */}
-                <path d="M 0 48 L 0 0 L 48 0" strokeWidth="2.5" strokeLinecap="square" />
-                {/* Inner Bracket (Thinner) */}
-                <path d="M 6 48 L 6 6 L 48 6" strokeWidth="1" strokeLinecap="square" opacity="0.6" />
-                {/* Corner Accent (Optional tiny square for sharpness) */}
-                <rect x="0" y="0" width="2" height="2" fill="currentColor" stroke="none" />
+        <div className="absolute top-4 left-4 w-24 h-24 pointer-events-none text-[#a16207] opacity-80 z-10">
+            <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" className="w-full h-full">
+                <path d="M 0 60 L 0 35 Q 0 0 35 0 L 60 0" strokeWidth="0.8" strokeLinecap="round" />
+                <path d="M 8 60 L 8 35 Q 8 8 35 8 L 60 8" strokeWidth="0.8" strokeLinecap="round" />
             </svg>
         </div>
 
-        {/* Top Right (Rotate 90) */}
-        <div className="absolute top-3 right-3 w-12 h-12 pointer-events-none text-[#78350f] opacity-80 rotate-90 z-10">
-             <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" className="w-full h-full drop-shadow-sm">
-                <path d="M 0 48 L 0 0 L 48 0" strokeWidth="2.5" strokeLinecap="square" />
-                <path d="M 6 48 L 6 6 L 48 6" strokeWidth="1" strokeLinecap="square" opacity="0.6" />
-                <rect x="0" y="0" width="2" height="2" fill="currentColor" stroke="none" />
+        <div className="absolute top-4 right-4 w-24 h-24 pointer-events-none text-[#a16207] opacity-80 z-10 scale-x-[-1]">
+             <svg viewBox="0 0 100 100" fill="none" stroke="currentColor" className="w-full h-full">
+                <path d="M 0 60 L 0 35 Q 0 0 35 0 L 60 0" strokeWidth="0.8" strokeLinecap="round" />
+                <path d="M 8 60 L 8 35 Q 8 8 35 8 L 60 8" strokeWidth="0.8" strokeLinecap="round" />
             </svg>
         </div>
+    </>
+  ),
 
-        {/* Bottom Right (Rotate 180) */}
-        <div className="absolute bottom-3 right-3 w-12 h-12 pointer-events-none text-[#78350f] opacity-80 rotate-180 z-10">
-             <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" className="w-full h-full drop-shadow-sm">
-                <path d="M 0 48 L 0 0 L 48 0" strokeWidth="2.5" strokeLinecap="square" />
-                <path d="M 6 48 L 6 6 L 48 6" strokeWidth="1" strokeLinecap="square" opacity="0.6" />
-                <rect x="0" y="0" width="2" height="2" fill="currentColor" stroke="none" />
-            </svg>
-        </div>
-
-        {/* Bottom Left (Rotate 270) */}
-        <div className="absolute bottom-3 left-3 w-12 h-12 pointer-events-none text-[#78350f] opacity-80 -rotate-90 z-10">
-             <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" className="w-full h-full drop-shadow-sm">
-                <path d="M 0 48 L 0 0 L 48 0" strokeWidth="2.5" strokeLinecap="square" />
-                <path d="M 6 48 L 6 6 L 48 6" strokeWidth="1" strokeLinecap="square" opacity="0.6" />
-                <rect x="0" y="0" width="2" height="2" fill="currentColor" stroke="none" />
-            </svg>
-        </div>
+  // ---------------------------------------------------------------------------
+  // [Report Brackets] 商业报告红框
+  // 效果：四个角落的L型红/深棕色粗线条，位置稍向内收缩
+  // ---------------------------------------------------------------------------
+  'report-brackets': (
+    <>
+      {/* Top Left */}
+      <div className="absolute top-5 left-5 w-12 h-12 border-l-[3px] border-t-[3px] border-[#8B1D1D] z-10 opacity-90" />
+      {/* Top Right */}
+      <div className="absolute top-5 right-5 w-12 h-12 border-r-[3px] border-t-[3px] border-[#8B1D1D] z-10 opacity-90" />
+      {/* Bottom Left */}
+      <div className="absolute bottom-5 left-5 w-12 h-12 border-l-[3px] border-b-[3px] border-[#8B1D1D] z-10 opacity-90" />
+      {/* Bottom Right */}
+      <div className="absolute bottom-5 right-5 w-12 h-12 border-r-[3px] border-b-[3px] border-[#8B1D1D] z-10 opacity-90" />
     </>
   )
 };

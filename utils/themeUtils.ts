@@ -1,4 +1,4 @@
-
+import React from 'react';
 import { FontSize, LayoutTheme, PaddingSize } from '../types';
 import { ThemeRegistry, ThemeDef } from './themeRegistry';
 

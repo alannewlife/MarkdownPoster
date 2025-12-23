@@ -11,7 +11,7 @@ export const THEME_CONFIG_YAML = `
 # 当用户第一次打开应用或重置时使用的值
 # ==============================================================================
 defaults:
-  theme: "Minimal"   # 默认边框主题 ID
+  theme: "MacOS"     # 默认边框主题 ID
   layout: "Base"     # 默认排版主题 ID
   fontSize: "Medium" # 默认字号 ID
   padding: "Medium"  # 默认边距 ID
@@ -136,41 +136,40 @@ borderThemes:
     preview: "bg-[#f5f5f4] border-2 border-gray-800"
     frame: "bg-[#f5f5f4]"
     card: "bg-white sketch-border p-2"
-    # [解耦] 移除了 font-comic
     content: "bg-transparent text-gray-900"
     prose: "prose-slate"
     watermarkColor: "text-stone-400"
+
+  # ----------------------------------------------------------------------------
+  # [Report] 商业报告 (MOVED after Sketch, replaced Elegant)
+  # ----------------------------------------------------------------------------
+  - id: "Report"
+    name: "商业报告"
+    preview: "bg-[#fbf9f5] relative overflow-hidden after:absolute after:top-1 after:left-1 after:w-3 after:h-3 after:border-l-2 after:border-t-2 after:border-[#8B1D1D] after:content-[''] before:absolute before:bottom-1 before:right-1 before:w-3 before:h-3 before:border-r-2 before:border-b-2 before:border-[#8B1D1D] before:content-['']"
+    frame: "bg-[#e5e5e5]"
+    card: "bg-[#fbf9f5] shadow-2xl relative"
+    header: "" 
+    customDecor: "report-brackets"
+    content: "bg-transparent text-[#2d2a26]"
+    prose: "prose-stone prose-headings:font-serif prose-headings:text-[#8B1D1D] prose-headings:font-bold prose-strong:text-[#8B1D1D] prose-blockquote:border-l-[#8B1D1D] prose-a:text-[#b91c1c]"
+    watermarkColor: "text-[#8B1D1D]/50"
 
   # ----------------------------------------------------------------------------
   # [Ink] 水墨丹青
   # ----------------------------------------------------------------------------
   - id: "Ink"
     name: "水墨丹青"
-    preview: "bg-[#f4f1e8] border-double border-2 border-stone-600"
+    preview: "bg-[#f4f1e8] border-double border-4 border-stone-600"
     # frame: 宣纸/米色背景
     frame: "bg-[#eaddcf]" 
-    # card: 使用 3px 双线边框，配合 customDecor 的小方框
-    card: "bg-[#fdfbf7] border-[3px] border-double border-[#57534e] shadow-xl relative"
+    # card: 使用 border-4 border-double (双线), 配合 customDecor 的小方框
+    # 颜色 #57534e 是 stone-600
+    card: "bg-[#fdfbf7] border-4 border-double border-[#57534e] shadow-xl relative"
     # 添加新的装饰字段
     customDecor: "ink-corners"
     content: "bg-[#fdfbf7] text-[#292524]"
     prose: "prose-stone prose-headings:text-[#1c1917] prose-blockquote:border-l-[#44403c]"
     watermarkColor: "text-[#57534e]"
-
-  # ----------------------------------------------------------------------------
-  # [Elegant] 宫廷雅致
-  # ----------------------------------------------------------------------------
-  - id: "Elegant"
-    name: "宫廷雅致"
-    preview: "bg-[#fffbf0] border border-orange-300"
-    frame: "bg-[#fff8e7]"
-    # card: 边框颜色调淡，让金色的角饰 (baroque-corners) 成为视觉重点
-    card: "bg-[#fffef9] border-[1px] border-orange-100 shadow-2xl rounded-sm relative"
-    # 添加新的装饰字段
-    customDecor: "baroque-corners"
-    content: "bg-transparent text-[#422006]"
-    prose: "prose-stone prose-headings:text-[#92400e] prose-a:text-[#b45309]"
-    watermarkColor: "text-[#d97706]/50"
 
   # ----------------------------------------------------------------------------
   # [Retro] 复古报刊
