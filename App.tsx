@@ -74,9 +74,6 @@ export default function App() {
   
   const [watermarkText, setWatermarkText] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_WATERMARK_TEXT);
-    // 初始化逻辑：
-    // 1. 如果有缓存（非 null），直接使用缓存值（哪怕是空字符串，也表示用户清空过）。
-    // 2. 如果无缓存（null，首次访问），使用 Config 中的默认文案（人人智学社...）。
     return saved !== null ? saved : defaults.watermark.text;
   });
 
@@ -232,7 +229,7 @@ export default function App() {
 
   const activePreviewRef = useMemo(() => {
     switch (viewMode) {
-        case ViewMode.Poster: return posterScrollRef;
+        case ViewMode.Poster: return posterScrollRef; // Note: In new Canvas mode, this ref might be unused for scroll sync
         case ViewMode.WeChat: return wechatScrollRef;
         default: return writingScrollRef;
     }
@@ -242,8 +239,11 @@ export default function App() {
   const { isCopyingWeChat, handleCopyHtml } = useWeChatExport({ weChatRef });
   const { isExportingZip, handleExportZip, handleDownloadMarkdown } = useProjectExport({ markdown, imagePool });
 
-  // --- SCROLL SYNCHRONIZATION (Unchanged) ---
+  // --- SCROLL SYNCHRONIZATION ---
   const handleEditorScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    // Disable scroll sync for Poster Mode (Canvas)
+    if (viewMode === ViewMode.Poster) return;
+
     if (isSyncingRight.current) return;
     const editor = e.currentTarget;
     const preview = activePreviewRef.current;
@@ -258,6 +258,9 @@ export default function App() {
   };
 
   const handlePreviewScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    // Disable scroll sync for Poster Mode (Canvas)
+    if (viewMode === ViewMode.Poster) return;
+
     const target = e.currentTarget;
     if (target.scrollTop > 300) setShowBackToTop(true);
     else setShowBackToTop(false);
@@ -275,7 +278,9 @@ export default function App() {
   };
 
   const scrollToTop = () => {
-    if (activePreviewRef.current) activePreviewRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    if (activePreviewRef.current && viewMode !== ViewMode.Poster) {
+         activePreviewRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     if (textareaRef.current) textareaRef.current.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

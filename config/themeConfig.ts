@@ -20,7 +20,7 @@ defaults:
   watermark:
     show: true
     text: "人人智学社 rrzxs.com"  
-    align: "text-right"
+    align: "text-center"
 
 # ==============================================================================
 # 1. 边框主题 (Border Themes)

@@ -1,9 +1,11 @@
-import React, { useMemo, forwardRef } from 'react';
+
+import React, { useMemo, forwardRef, useState, useCallback, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkDirective from 'remark-directive';
 import rehypeKatex from 'rehype-katex';
+import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import { BorderTheme, LayoutTheme, FontSize, PaddingSize, WatermarkAlign } from '../types';
 import { getThemeStyles, getFontSizeClass, getLayoutClass, getFramePaddingClass } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
@@ -11,7 +13,6 @@ import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
 import { HEADER_PRESETS } from '../config/headerPresets'; 
 import { DECOR_PRESETS } from '../config/decorPresets'; 
-import { ThemeRegistry } from '../utils/themeRegistry';
 
 interface PosterPreviewProps {
   markdown: string;
@@ -30,6 +31,34 @@ interface PosterPreviewProps {
   customThemeColor?: string;
 }
 
+/**
+ * Inner Component to access Zoom Controls context
+ * Now accepts 'scale' as a prop to display dynamic value
+ */
+const ZoomControls = ({ isDarkMode, scale }: { isDarkMode: boolean; scale: number }) => {
+    const { zoomIn, zoomOut, resetTransform } = useControls();
+
+    return (
+        <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 rounded-lg shadow-lg border z-50 transition-colors duration-300 ${
+            isDarkMode 
+                ? 'bg-[#2c313a]/90 border-[#3e4451] text-[#abb2bf]' 
+                : 'bg-white/90 border-gray-200 text-gray-600'
+        }`}>
+            <button onClick={() => zoomOut()} className="p-2 hover:bg-black/5 rounded transition-colors" title="缩小">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+            </button>
+            <div className={`w-px h-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+            <button onClick={() => resetTransform()} className="w-12 py-2 text-xs font-bold hover:bg-black/5 rounded transition-colors tabular-nums" title="重置视图">
+                {scale}%
+            </button>
+            <div className={`w-px h-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}></div>
+            <button onClick={() => zoomIn()} className="p-2 hover:bg-black/5 rounded transition-colors" title="放大">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            </button>
+        </div>
+    );
+};
+
 export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
   markdown,
   theme,
@@ -42,8 +71,6 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
   imagePool,
   isDarkMode,
   visible,
-  containerRef,
-  onScroll,
   customThemeColor
 }, ref) => {
   
@@ -53,97 +80,225 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
   const layoutClass = getLayoutClass(layoutTheme);
   const paddingClass = getFramePaddingClass(padding);
 
+  // --- Zoom State ---
+  // Initialize with a safe default, will be updated on mount
+  const [currentScale, setCurrentScale] = useState(100); 
+
+  // --- Resize Logic ---
+  const [posterWidth, setPosterWidth] = useState(640);
+  const isResizing = useRef(false);
+
+  const startResizing = useCallback((direction: 'left' | 'right') => (mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    mouseDownEvent.stopPropagation();
+    isResizing.current = true;
+    
+    const startX = mouseDownEvent.clientX;
+    const startWidth = posterWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+        if (!isResizing.current) return;
+        const currentX = moveEvent.clientX;
+        const diff = currentX - startX;
+        
+        // Symmetrical resizing
+        const multiplier = direction === 'right' ? 2 : -2;
+        
+        // Limits: 320px min, 2000px max
+        const newWidth = Math.max(320, Math.min(2000, startWidth + (diff * multiplier)));
+        setPosterWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+        isResizing.current = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none'; 
+  }, [posterWidth]);
+
   return (
     <div 
-        ref={containerRef}
-        onScroll={onScroll}
-        className={`absolute inset-0 overflow-y-auto overflow-x-hidden ${
-            visible ? 'z-10 visible' : 'z-0 invisible'
+        className={`absolute inset-0 overflow-hidden select-none transition-all duration-500 ease-out delay-75 ${
+            visible 
+                ? 'opacity-100 scale-100 z-10' 
+                : 'opacity-0 scale-95 z-0 pointer-events-none'
         }`}
     >
-       <div className={`w-full min-h-full flex justify-center items-start py-8 sm:py-16 origin-center transition-all duration-300 ease-out delay-75 ${
-           visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-       }`}>
-          {/* Main Poster Frame */}
-          <div 
-            ref={ref}
-            id="poster-node"
-            className={`
-                relative flex flex-col transition-all duration-500 ease-in-out
-                ${paddingClass}
-                ${themeStyle.frame}
-            `}
-            style={{
-                width: '100%',
-                maxWidth: '640px',
-                // Dynamic Frame Styles (Gradients, Images)
-                ...themeStyle.frameStyle
-            }}
-          >
-            {/* The Card (Inner Container) */}
-            <div className={`
-                relative flex flex-col z-10
-                ${themeStyle.card}
-            `}
-            style={{
-                // Dynamic Card Styles (Border colors, Shadows for Neon/Glass)
-                ...themeStyle.cardStyle
-            }}
-            >
-                {/* 1. Custom Header (If defined in theme) */}
-                {themeStyle.customHeader && HEADER_PRESETS[themeStyle.customHeader] && (
-                    <div className={themeStyle.header}>
-                         {HEADER_PRESETS[themeStyle.customHeader]}
-                    </div>
-                )}
+       <TransformWrapper
+          centerOnInit={false} 
+          minScale={0.2}
+          maxScale={4}
+          wheel={{ step: 0.1 }}
+          panning={{ velocityDisabled: true }}
+          doubleClick={{ disabled: true }}
+          // Sync state on every transform
+          onTransformed={(e) => setCurrentScale(Math.round(e.state.scale * 100))}
+          // Custom Initialization to Center X and Top-Align Y
+          onInit={(ref) => {
+             const { instance } = ref;
+             if (instance.contentComponent && instance.wrapperComponent) {
+                const wrapperW = instance.wrapperComponent.offsetWidth;
+                const contentW = instance.contentComponent.offsetWidth;
                 
-                {/* 1.1 Custom Decor (If defined in theme) */}
-                {themeStyle.customDecor && DECOR_PRESETS[themeStyle.customDecor] && (
-                     <>
-                        {DECOR_PRESETS[themeStyle.customDecor]}
-                     </>
-                )}
+                // Initial Scale: 100%
+                const targetScale = 1;
+                
+                // Calculate X to center horizontally: (WrapperWidth - ScaledContentWidth) / 2
+                const targetX = (wrapperW - contentW * targetScale) / 2;
+                
+                // Set Y to 40px padding from top
+                const targetY = 40;
+                
+                ref.setTransform(targetX, targetY, targetScale);
+                setCurrentScale(Math.round(targetScale * 100));
+             }
+          }}
+       >
+          {({ zoomIn, zoomOut, resetTransform }) => (
+            <>
+              {/* Toolbar floating above canvas */}
+              <ZoomControls isDarkMode={isDarkMode} scale={currentScale} />
 
-                {/* 2. Content Area */}
-                <div className={`
-                    flex-1
-                    px-8 py-8 sm:px-12 sm:py-10
-                    ${themeStyle.content}
-                    ${layoutClass}
-                `}>
-                    <div className={`prose max-w-none ${themeStyle.prose} ${fontSizeClass}`}>
-                        <ReactMarkdown 
-                            remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkRuby, remarkCenter]}
-                            rehypePlugins={[rehypeKatex]}
-                            urlTransform={(value) => value}
-                            components={{
-                                img: (props) => <StableImage {...props} imagePool={imagePool} />,
-                                a: ({ node, href, children, ...props }) => {
-                                  if (href && href.startsWith('ruby:')) {
-                                      const reading = href.replace('ruby:', '');
-                                      const decodedReading = decodeURIComponent(reading);
-                                      return <RubyRender baseText={children} reading={decodedReading} {...props} />;
-                                  }
-                                  return <a href={href} {...props}>{children}</a>;
-                                }
-                            }}
+              <TransformComponent
+                 // Refined Dot Pattern Background
+                 wrapperClass={`w-full h-full cursor-grab active:cursor-grabbing transition-colors duration-500
+                    ${isDarkMode 
+                        ? 'bg-[#13151a] bg-[radial-gradient(#2d333b_1px,transparent_1px)] [background-size:24px_24px]' 
+                        : 'bg-[#f8f9fa] bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:24px_24px]'
+                    }
+                 `}
+                 // Using flex items-start (Top Align) and justify-start (Left Align)
+                 // We handle centering manually via setTransform in onInit.
+                 // This gives us precise control over the initial position (Top Center).
+                 contentClass="w-full h-full flex items-start justify-start pt-20 pb-20 box-border"
+                 wrapperStyle={{ width: "100%", height: "100%" }}
+              >
+                  {/* Container for Centering Inner Content width-wise */}
+                  {/* Since TransformWrapper transforms this whole container, we use w-full to match wrapper width */}
+                  {/* Inside here, we center the poster card */}
+                  <div className="w-full flex justify-center">
+                      {/* The Resizable Poster */}
+                      <div 
+                        className="relative transition-shadow duration-300 shadow-2xl shrink-0 origin-top"
+                        style={{ width: `${posterWidth}px` }}
+                      >
+                        {/* --- RESIZE HANDLES --- */}
+                        {/* Left Handle */}
+                        <div 
+                            className="absolute -left-8 top-0 bottom-0 w-8 flex items-center justify-end cursor-col-resize group z-50 hover:bg-blue-500/5 transition-colors rounded-l-lg"
+                            onMouseDown={startResizing('left')}
                         >
-                            {markdown}
-                        </ReactMarkdown>
-                    </div>
-                </div>
-            </div>
+                            <div className={`w-1.5 h-16 rounded-full transition-colors ${isDarkMode ? 'bg-gray-600 group-hover:bg-blue-400' : 'bg-gray-300 group-hover:bg-blue-500'}`} />
+                        </div>
 
-            {/* 3. Watermark / Signature */}
-            {showWatermark && (
-                <div className={`mt-6 z-10 ${watermarkAlign} ${themeStyle.watermarkColor}`}>
-                   <div className="text-sm font-medium opacity-80 font-sans tracking-wider">
-                       {watermarkText}
-                   </div>
-                </div>
-            )}
-          </div>
-       </div>
+                        {/* Right Handle */}
+                        <div 
+                            className="absolute -right-8 top-0 bottom-0 w-8 flex items-center justify-start cursor-col-resize group z-50 hover:bg-blue-500/5 transition-colors rounded-r-lg"
+                            onMouseDown={startResizing('right')}
+                        >
+                            <div className={`w-1.5 h-16 rounded-full transition-colors ${isDarkMode ? 'bg-gray-600 group-hover:bg-blue-400' : 'bg-gray-300 group-hover:bg-blue-500'}`} />
+                        </div>
+                        
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/75 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                            {Math.round(posterWidth)}px
+                        </div>
+
+                        {/* --- ACTUAL POSTER CONTENT (Export Target) --- */}
+                        <div 
+                            ref={ref}
+                            id="poster-node"
+                            className={`
+                                relative flex flex-col cursor-auto
+                                ${paddingClass}
+                                ${themeStyle.frame}
+                            `}
+                            style={{
+                                width: '100%',
+                                ...themeStyle.frameStyle
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()} 
+                        >
+                            <div className={`
+                                relative flex flex-col z-10
+                                ${themeStyle.card}
+                            `}
+                            style={{ ...themeStyle.cardStyle }}
+                            >
+                                {themeStyle.customHeader && HEADER_PRESETS[themeStyle.customHeader] && (
+                                    <div className={themeStyle.header}>
+                                        {HEADER_PRESETS[themeStyle.customHeader]}
+                                    </div>
+                                )}
+                                
+                                {themeStyle.customDecor && DECOR_PRESETS[themeStyle.customDecor] && (
+                                    <div className="pointer-events-none">
+                                        {DECOR_PRESETS[themeStyle.customDecor]}
+                                    </div>
+                                )}
+
+                                <div className={`
+                                    flex-1
+                                    px-8 py-8 sm:px-12 sm:py-10
+                                    ${themeStyle.content}
+                                    ${layoutClass}
+                                `}>
+                                    <div className={`prose max-w-none ${themeStyle.prose} ${fontSizeClass}`}>
+                                        <ReactMarkdown 
+                                            remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkRuby, remarkCenter]}
+                                            rehypePlugins={[rehypeKatex]}
+                                            urlTransform={(value) => value}
+                                            components={{
+                                                img: (props) => <StableImage {...props} imagePool={imagePool} />,
+                                                a: ({ node, href, children, ...props }) => {
+                                                if (href && href.startsWith('ruby:')) {
+                                                    const reading = href.replace('ruby:', '');
+                                                    const decodedReading = decodeURIComponent(reading);
+                                                    return <RubyRender baseText={children} reading={decodedReading} {...props} />;
+                                                }
+                                                return <a href={href} {...props}>{children}</a>;
+                                                },
+                                                // Override pre to force wrapping and hide scrollbars for poster static export
+                                                pre: ({ node, children, ...props }) => (
+                                                    <pre 
+                                                        {...props} 
+                                                        style={{ 
+                                                            whiteSpace: 'pre-wrap', 
+                                                            wordBreak: 'break-word',
+                                                            overflow: 'hidden' 
+                                                        }}
+                                                    >
+                                                        {children}
+                                                    </pre>
+                                                )
+                                            }}
+                                        >
+                                            {markdown}
+                                        </ReactMarkdown>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {showWatermark && (
+                                <div className={`mt-6 z-10 ${watermarkAlign} ${themeStyle.watermarkColor}`}>
+                                <div className="text-sm font-medium opacity-80 font-sans tracking-wider">
+                                    {watermarkText}
+                                </div>
+                                </div>
+                            )}
+                        </div>
+                      </div>
+                  </div>
+              </TransformComponent>
+            </>
+          )}
+       </TransformWrapper>
     </div>
   );
 });
