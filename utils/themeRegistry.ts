@@ -9,6 +9,8 @@ export interface ThemeDef extends BorderStyleConfig {
     preview: string; // Tailwind class for small preview circle
     isDark?: boolean; // If true, UI might adjust contrast
     customHeader?: string; // For specific header renderings like macos/sunset/candy
+    customDecor?: string; // New: For corner decorations (Ink squares, Baroque patterns)
+    allowCustomColor?: boolean; // New: If true, enables the color picker for this theme
 }
 
 export interface LayoutDef {

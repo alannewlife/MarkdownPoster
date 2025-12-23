@@ -38,6 +38,9 @@ interface PreviewControlBarProps {
   weChatConfig?: WeChatConfig;
   setWeChatConfig?: (config: WeChatConfig) => void;
   onCopyWeChatHtml?: () => Promise<WeChatCopyResult | null>;
+
+  customThemeColor?: string;
+  setCustomThemeColor?: (color: string) => void;
 }
 
 interface NotificationState {
@@ -72,7 +75,9 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   setViewMode,
   weChatConfig,
   setWeChatConfig,
-  onCopyWeChatHtml
+  onCopyWeChatHtml,
+  customThemeColor,
+  setCustomThemeColor
 }) => {
   const [showAppearance, setShowAppearance] = useState(false);
   const [notification, setNotification] = useState<NotificationState | null>(null);
@@ -191,6 +196,8 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                         setWatermarkAlign={setWatermarkAlign}
                         isDarkMode={isDarkMode}
                         onClose={() => setShowAppearance(false)}
+                        customThemeColor={customThemeColor}
+                        setCustomThemeColor={setCustomThemeColor}
                     />
                 )}
 

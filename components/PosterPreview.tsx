@@ -9,8 +9,8 @@ import { getThemeStyles, getFontSizeClass, getLayoutClass, getFramePaddingClass 
 import { StableImage } from './StableImage';
 import { remarkRuby } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
-import { ThemeRegistry } from '../utils/themeRegistry';
-import { HEADER_PRESETS } from '../config/headerPresets'; // Import the new registry
+import { HEADER_PRESETS } from '../config/headerPresets'; 
+import { DECOR_PRESETS } from '../config/decorPresets'; // Import new Decor Presets
 
 interface PosterPreviewProps {
   markdown: string;
@@ -26,6 +26,7 @@ interface PosterPreviewProps {
   visible: boolean;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  customThemeColor?: string;
 }
 
 export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
@@ -41,9 +42,10 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
   isDarkMode,
   visible,
   containerRef,
-  onScroll
+  onScroll,
+  customThemeColor
 }, ref) => {
-  const currentStyle = useMemo(() => getThemeStyles(theme), [theme]);
+  const currentStyle = useMemo(() => getThemeStyles(theme, customThemeColor), [theme, customThemeColor]);
 
   return (
     <div 
@@ -63,18 +65,30 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
           <div 
             ref={ref}
             className={`w-full md:w-[75%] max-w-none flex flex-col ${getFramePaddingClass(padding)} ${currentStyle.frame}`}
+            style={currentStyle.frameStyle}
           >
             
-            <div className={`w-full ${currentStyle.card}`}>
+            <div 
+                className={`w-full relative ${currentStyle.card}`} 
+                style={currentStyle.cardStyle} 
+            > 
+              {/* Added 'relative' to ensure decorations position correctly relative to the card */}
               
-              {/* Dynamic Header Rendering based on Config Presets */}
+              {/* 1. Custom Decorations (Corners, Frames) */}
+              {currentStyle.customDecor && DECOR_PRESETS[currentStyle.customDecor] && (
+                  <div className="absolute inset-0 pointer-events-none z-10">
+                      {DECOR_PRESETS[currentStyle.customDecor]}
+                  </div>
+              )}
+              
+              {/* 2. Custom Header */}
               {currentStyle.header && (
                   <div className={currentStyle.header}>
-                      {/* Look up the preset from the registry based on the string key */}
                       {currentStyle.customHeader && HEADER_PRESETS[currentStyle.customHeader]}
                   </div>
               )}
               
+              {/* 3. Main Content */}
               <div 
                   className={`p-10 prose max-w-none ${currentStyle.prose} ${currentStyle.content} ${getFontSizeClass(fontSize)} ${getLayoutClass(layoutTheme)} min-h-[500px] [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:!overflow-hidden [&_pre]:!max-h-none [&>:last-child]:mb-0`}
               >
@@ -84,11 +98,9 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
                   urlTransform={(value) => value}
                   components={{
                     img: (props) => <StableImage {...props} imagePool={imagePool} />,
-                    // Intercept Links to check for Ruby protocol
                     a: ({ node, href, children, ...props }) => {
                         if (href && href.startsWith('ruby:')) {
                             const reading = href.replace('ruby:', '');
-                            // Decode URI component in case reading has special chars
                             const decodedReading = decodeURIComponent(reading);
                             return <RubyRender baseText={children} reading={decodedReading} {...props} />;
                         }

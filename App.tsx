@@ -26,6 +26,7 @@ const STORAGE_KEY_WATERMARK_ALIGN = 'markdown_poster_watermark_align';
 const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
 const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; 
 const STORAGE_KEY_WECHAT_CONFIG = 'markdown_poster_wechat_config_v2'; 
+const STORAGE_KEY_CUSTOM_COLOR = 'markdown_poster_custom_color';
 
 // Max History Steps
 const MAX_HISTORY_SIZE = 10;
@@ -151,7 +152,12 @@ export default function App() {
     }
   });
 
-  // 11. Modal State
+  // 11. Custom Theme Color (For Aurora/Radiance)
+  const [customThemeColor, setCustomThemeColor] = useState<string>(() => {
+      return localStorage.getItem(STORAGE_KEY_CUSTOM_COLOR) || '#6366f1';
+  });
+
+  // 12. Modal State
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   // --- PERSISTENCE EFFECTS ---
@@ -195,6 +201,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_WECHAT_CONFIG, JSON.stringify(weChatConfig));
   }, [weChatConfig]);
+
+  useEffect(() => {
+      localStorage.setItem(STORAGE_KEY_CUSTOM_COLOR, customThemeColor);
+  }, [customThemeColor]);
 
   useEffect(() => {
     try {
@@ -538,7 +548,7 @@ export default function App() {
             ${isDarkMode ? 'bg-[#23272e] shadow-none' : 'bg-[#fdfcf5] border-r border-[#e0e0e0] shadow-[4px_0_24px_rgba(0,0,0,0.02)]'}
           `}
         >
-          {/* Editor Header (Same as before, abbreviated for brevity in update) */}
+          {/* Editor Header */}
           <div className={`h-12 flex items-center relative z-20 transition-colors duration-500 group/toolbar
              ${isDarkMode ? 'bg-[#1e2227] border-b border-[#181a1f]' : 'bg-[#f4f2eb] border-b border-[#e8e6df]'}
           `}>
@@ -669,6 +679,9 @@ export default function App() {
             weChatConfig={weChatConfig}
             setWeChatConfig={setWeChatConfig}
             onCopyWeChatHtml={handleCopyHtml}
+
+            customThemeColor={customThemeColor}
+            setCustomThemeColor={setCustomThemeColor}
           />
           
           <div className="relative flex-1 min-h-0 overflow-hidden">
@@ -689,6 +702,7 @@ export default function App() {
                isDarkMode={isDarkMode}
                containerRef={posterScrollRef}
                onScroll={handlePreviewScroll}
+               customThemeColor={customThemeColor}
              />
 
             {/* --- WRITING MODE RENDER --- */}
