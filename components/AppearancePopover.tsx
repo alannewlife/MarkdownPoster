@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { BorderTheme, FontSize, LayoutTheme, PaddingSize, WatermarkAlign } from '../types';
 import { ThemeRegistry } from '../utils/themeRegistry';

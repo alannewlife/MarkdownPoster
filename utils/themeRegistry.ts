@@ -1,6 +1,8 @@
 
+
 import yaml from 'js-yaml';
 import { THEME_CONFIG_YAML } from '../config/themeConfig';
+import { WRITING_THEMES, DEFAULT_WRITING_THEME_ID } from '../config/writingThemes';
 import { BorderStyleConfig, WatermarkAlign } from '../types';
 
 export interface ThemeDef extends BorderStyleConfig {
@@ -11,6 +13,15 @@ export interface ThemeDef extends BorderStyleConfig {
     customHeader?: string; // For specific header renderings like macos/sunset/candy
     customDecor?: string; // New: For corner decorations (Ink squares, Baroque patterns)
     allowCustomColor?: boolean; // New: If true, enables the color picker for this theme
+}
+
+export interface WritingThemeDef {
+    id: string;
+    name: string;
+    isDark: boolean;
+    className: string; // Container background
+    prose: string; // Text typography
+    preview: string; // Small preview style
 }
 
 export interface LayoutDef {
@@ -41,6 +52,7 @@ interface WatermarkConfig {
 interface Defaults {
     theme: string;
     layout: string;
+    writingTheme: string;
     fontSize: string;
     padding: string;
     watermark: WatermarkConfig;
@@ -50,6 +62,7 @@ interface ParsedConfig {
     defaults: Defaults;
     borderThemes: ThemeDef[]; // Renamed from 'themes' in previous version
     layoutThemes: LayoutDef[];
+    // writingThemes removed from YAML
     fontSizes: FontSizeDef[];
     paddings: PaddingDef[];
     
@@ -60,6 +73,7 @@ interface ParsedConfig {
 class ThemeRegistryClass {
     private config: ParsedConfig;
     private themeMap: Record<string, ThemeDef>;
+    private writingThemeMap: Record<string, WritingThemeDef>;
     private layoutMap: Record<string, LayoutDef>;
     private fontSizeMap: Record<string, FontSizeDef>;
     private paddingMap: Record<string, PaddingDef>;
@@ -74,6 +88,12 @@ class ThemeRegistryClass {
             this.themeMap = {};
             borderThemes.forEach(t => {
                 this.themeMap[t.id] = t;
+            });
+
+            this.writingThemeMap = {};
+            // Load writing themes from separate TS file instead of YAML
+            WRITING_THEMES.forEach(t => {
+                this.writingThemeMap[t.id] = t;
             });
 
             this.layoutMap = {};
@@ -98,6 +118,7 @@ class ThemeRegistryClass {
                 defaults: { 
                     theme: 'Minimal', 
                     layout: 'Base', 
+                    writingTheme: DEFAULT_WRITING_THEME_ID,
                     fontSize: 'Medium', 
                     padding: 'Medium',
                     watermark: {
@@ -112,6 +133,7 @@ class ThemeRegistryClass {
                 paddings: []
             };
             this.themeMap = {};
+            this.writingThemeMap = {};
             this.layoutMap = {};
             this.fontSizeMap = {};
             this.paddingMap = {};
@@ -122,6 +144,10 @@ class ThemeRegistryClass {
 
     getBorderThemes(): ThemeDef[] {
         return this.config.borderThemes || this.config.themes || [];
+    }
+
+    getWritingThemes(): WritingThemeDef[] {
+        return WRITING_THEMES;
     }
 
     getLayoutThemes(): LayoutDef[] {
@@ -140,6 +166,10 @@ class ThemeRegistryClass {
 
     getBorderTheme(id: string): ThemeDef | undefined {
         return this.themeMap[id];
+    }
+    
+    getWritingTheme(id: string): WritingThemeDef | undefined {
+        return this.writingThemeMap[id];
     }
 
     getLayoutTheme(id: string): LayoutDef | undefined {
@@ -162,6 +192,7 @@ class ThemeRegistryClass {
         return {
             theme: d?.theme || 'Minimal',
             layout: d?.layout || 'Base',
+            writingTheme: d?.writingTheme || DEFAULT_WRITING_THEME_ID,
             fontSize: d?.fontSize || 'Medium',
             padding: d?.padding || 'Medium',
             watermark: {

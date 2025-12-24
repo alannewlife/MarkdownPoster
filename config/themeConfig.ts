@@ -1,4 +1,6 @@
 
+import { DEFAULT_WRITING_THEME_ID } from './writingThemes';
+
 // -----------------------------------------------------------------------------
 // 配置文件 (Config)
 // 这是一个纯 YAML 格式的字符串。
@@ -13,6 +15,7 @@ export const THEME_CONFIG_YAML = `
 defaults:
   theme: "MacOS"     # 默认边框主题 ID
   layout: "Base"     # 默认排版主题 ID
+  writingTheme: "${DEFAULT_WRITING_THEME_ID}" # 默认写作/阅读主题 ID (引用自 writingThemes.ts)
   fontSize: "Medium" # 默认字号 ID
   padding: "Medium"  # 默认边距 ID
   

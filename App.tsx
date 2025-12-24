@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
@@ -6,7 +7,7 @@ import { PosterPreview } from './components/PosterPreview';
 import { WritingPreview } from './components/WritingPreview';
 import { WeChatPreview } from './components/WeChatPreview';
 import { ConfirmationModal } from './components/ConfirmationModal';
-import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig } from './types';
+import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig, WritingTheme } from './types';
 import { cleanImagePool, compressImage } from './utils/imageUtils';
 import { DEFAULT_MARKDOWN } from './constants/defaultContent';
 import { usePosterExport } from './hooks/usePosterExport';
@@ -18,6 +19,7 @@ import { ThemeRegistry } from './utils/themeRegistry';
 const STORAGE_KEY_MARKDOWN = 'markdown_poster_draft';
 const STORAGE_KEY_THEME = 'markdown_poster_theme';
 const STORAGE_KEY_LAYOUT_THEME = 'markdown_poster_layout_theme';
+const STORAGE_KEY_WRITING_THEME = 'markdown_poster_writing_theme';
 const STORAGE_KEY_FONT_SIZE = 'markdown_poster_fontsize';
 const STORAGE_KEY_PADDING = 'markdown_poster_padding';
 const STORAGE_KEY_WATERMARK_SHOW = 'markdown_poster_watermark_show';
@@ -52,6 +54,12 @@ export default function App() {
   const [layoutTheme, setLayoutTheme] = useState<LayoutTheme>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_LAYOUT_THEME);
     return (saved as LayoutTheme) || defaults.layout;
+  });
+
+  // 3.1 Writing Theme (New)
+  const [writingTheme, setWritingTheme] = useState<WritingTheme>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_WRITING_THEME);
+    return (saved as WritingTheme) || defaults.writingTheme;
   });
 
   // 4. Font Size
@@ -170,6 +178,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_LAYOUT_THEME, layoutTheme);
   }, [layoutTheme]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_WRITING_THEME, writingTheme);
+  }, [writingTheme]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_FONT_SIZE, fontSize);
@@ -848,6 +860,9 @@ export default function App() {
 
             customThemeColor={customThemeColor}
             setCustomThemeColor={setCustomThemeColor}
+
+            writingTheme={writingTheme}
+            setWritingTheme={setWritingTheme}
           />
           
           <div className="relative flex-1 min-h-0 overflow-hidden">
@@ -877,6 +892,7 @@ export default function App() {
                markdown={markdown}
                fontSize={fontSize}
                imagePool={imagePool}
+               writingTheme={writingTheme}
                isDarkMode={isDarkMode}
                containerRef={writingScrollRef}
                onScroll={handlePreviewScroll}

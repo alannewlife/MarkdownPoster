@@ -4,6 +4,7 @@
 
 export type BorderTheme = string;
 export type LayoutTheme = string;
+export type WritingTheme = string;
 export type FontSize = string;
 export type PaddingSize = string;
 
