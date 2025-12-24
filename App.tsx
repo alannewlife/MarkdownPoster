@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
@@ -155,7 +156,7 @@ export default function App() {
 
   // 12. Modal State
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-
+  
   // --- PERSISTENCE EFFECTS ---
   
   useEffect(() => {
@@ -218,7 +219,7 @@ export default function App() {
   const exportRef = useRef<HTMLDivElement>(null);
   const weChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
+  
   const posterScrollRef = useRef<HTMLDivElement>(null);
   const writingScrollRef = useRef<HTMLDivElement>(null);
   const wechatScrollRef = useRef<HTMLDivElement>(null);
@@ -406,15 +407,6 @@ export default function App() {
       let lineEnd = text.indexOf('\n', end);
       if (lineEnd === -1) lineEnd = text.length;
       
-      // If selection end touches the newline but doesn't cross it, we typically consider that line selected.
-      // But if selection starts at index X and ends at X, it's a cursor.
-      // If selection spans multiple lines, we want the full lines.
-      // Logic: text.indexOf('\n', end) searches AFTER the end index.
-      
-      // Edge case: if the selection ends exactly at a newline character, `end` is at \n.
-      // We generally want to include the line before it.
-      // However, if we just use standard logic, it works for block replacement.
-      
       return { start: lineStart, end: lineEnd };
   };
 
@@ -433,8 +425,6 @@ export default function App() {
     const lines = selectedContent.split('\n');
 
     // 2. Determine if we are Adding or Removing
-    // If ALL selected lines already start with the prefix, we remove it.
-    // Otherwise, we add it to lines that don't have it (or all lines).
     const allHavePrefix = lines.every(line => line.startsWith(prefix));
     
     const newLines = lines.map(line => {
@@ -442,8 +432,7 @@ export default function App() {
             // Remove prefix
             return line.startsWith(prefix) ? line.substring(prefix.length) : line;
         } else {
-            // Add prefix (ensure we don't double add if some lines already have it, unless strict toggle required)
-            // Common editor behavior: if mixed, add to all.
+            // Add prefix
             return prefix + line;
         }
     });
@@ -464,6 +453,43 @@ export default function App() {
         }
     });
   };
+
+  // Heading Selector Handler
+  const handleHeadingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const level = e.target.value;
+      if (!level) return;
+      handleLinePrefix('#'.repeat(parseInt(level)) + ' ');
+      // Reset select value immediately
+      e.target.value = "";
+  };
+
+  // Table Selector Handler
+  const handleTableChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const val = e.target.value;
+      if (!val) return;
+      
+      const [r, c] = val.split('x').map(n => parseInt(n));
+      handleInsertTable(r, c);
+
+      // Reset select value
+      e.target.value = "";
+  };
+
+  const handleInsertTable = (rows: number, cols: number) => {
+    if (rows <= 0 || cols <= 0) return;
+    
+    let header = "|";
+    let divider = "|";
+    for(let c=0; c<cols; c++) { header += " Header |"; divider += " --- |"; }
+    
+    let body = "";
+    for(let r=0; r<rows; r++) {
+        body += "\n|";
+        for(let c=0; c<cols; c++) { body += " Cell |"; }
+    }
+    
+    insertTextAtCursor(`\n${header}\n${divider}${body}\n`);
+  };
   
   const handleCenter = () => {
     const textarea = textareaRef.current;
@@ -476,22 +502,16 @@ export default function App() {
     
     const selectedContent = value.substring(lineStart, lineEnd);
     
-    // Check if the block is already wrapped in :::center ... :::
-    // We check simply if the string starts with the opening tag and ends with closing tag
-    // This is a basic check.
     const startTag = ":::center\n";
     const endTag = "\n:::";
 
-    // Allow for potential extra newlines or spacing when checking
     const isWrapped = selectedContent.trim().startsWith(":::center") && selectedContent.trim().endsWith(":::");
     
     let newContent = "";
     
     if (isWrapped) {
         // Unwrap
-        // Remove first line containing :::center and last line containing :::
         const lines = selectedContent.split('\n');
-        // Filter out the directive lines
         const contentLines = lines.filter(l => l.trim() !== ":::center" && l.trim() !== ":::");
         newContent = contentLines.join('\n');
     } else {
@@ -505,7 +525,6 @@ export default function App() {
     requestAnimationFrame(() => {
         if (textareaRef.current) {
             textareaRef.current.focus({ preventScroll: true });
-            // Select the whole block
             textareaRef.current.setSelectionRange(lineStart, lineStart + newContent.length);
         }
     });
@@ -694,19 +713,60 @@ export default function App() {
 
                     <div ref={formatToolbarRef} onScroll={checkFormatScroll} className="flex items-center overflow-x-auto no-scrollbar h-full px-1 gap-1 scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                         <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
-                        <button onClick={() => handleLinePrefix('# ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg></button>
+                        
+                        {/* Heading Selector with Native Select Overlay */}
+                        <div className={`relative p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="标题">
+                             <svg className="w-4 h-4 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12M6 20V4M18 20V4"/></svg>
+                             <select 
+                                onChange={handleHeadingChange}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                defaultValue=""
+                             >
+                                <option value="" disabled>选择标题级别</option>
+                                <option value="1">H1 - 一级标题</option>
+                                <option value="2">H2 - 二级标题</option>
+                                <option value="3">H3 - 三级标题</option>
+                                <option value="4">H4 - 四级标题</option>
+                             </select>
+                        </div>
+
                         <button onClick={() => insertMarkdownSyntax('**', '**')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="粗体"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg></button>
+                        <button onClick={() => insertMarkdownSyntax('*', '*')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="斜体"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="4" x2="10" y2="4"></line><line x1="14" y1="20" x2="5" y2="20"></line><line x1="15" y1="4" x2="9" y2="20"></line></svg></button>
+                        <button onClick={() => insertMarkdownSyntax('`', '`')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="行内代码"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></button>
+                        
+                        <div className={`w-px h-3 mx-1 flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
+
                         <button onClick={() => handleLinePrefix('- ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="列表"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg></button>
                         <button onClick={() => handleLinePrefix('1. ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="数字列表"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg></button>
+                        
                         <div className={`w-px h-3 mx-1 flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
+                        
                         <button onClick={() => handleLinePrefix('> ')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="引用"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9L9 9.01"/><path d="M15 9L14 9.01"/><path d="M3 21V11C3 6.58 6.58 3 11 3h2c4.42 0 8 3.58 8 8v10H3z"/></svg></button>
                         <button onClick={handleCenter} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="居中"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M7 12h10M4 18h16"></path></svg></button>
+                        
                         <div className={`w-px h-3 mx-1 flex-shrink-0 transition-colors ${isDarkMode ? 'bg-[#3e4451]' : 'bg-gray-300'}`}></div>
+                        
                         <button onClick={() => insertMarkdownSyntax('[', '](https://example.com)', '链接文字')} className={`p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="链接"><svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg></button>
                         <label className={`p-1.5 rounded transition-colors flex-shrink-0 cursor-pointer ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="图片">
                             <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                         </label>
+
+                        {/* Table Selector with Native Select Overlay */}
+                        <div className={`relative p-1.5 rounded transition-colors flex-shrink-0 ${isDarkMode ? 'hover:text-[#d4cfbf] hover:bg-[#3e4451] text-gray-500' : 'text-gray-500 hover:text-[#8b7e74] hover:bg-[#e0ded7]'}`} title="表格">
+                                <svg className="w-4 h-4 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                                <select 
+                                    onChange={handleTableChange}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    defaultValue=""
+                                >
+                                    <option value="" disabled>选择表格大小</option>
+                                    <option value="2x2">2 行 x 2 列</option>
+                                    <option value="3x3">3 行 x 3 列</option>
+                                    <option value="4x4">4 行 x 4 列</option>
+                                    <option value="5x5">5 行 x 5 列</option>
+                                </select>
+                        </div>
                     </div>
 
                     <div className={`absolute right-0 top-0 bottom-0 z-10 flex items-center justify-center w-6 transition-opacity duration-300 pointer-events-none ${formatCanScrollRight ? 'opacity-100' : 'opacity-0'}`}>
