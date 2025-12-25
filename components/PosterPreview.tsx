@@ -6,7 +6,7 @@ import remarkMath from 'remark-math';
 import remarkDirective from 'remark-directive';
 import rehypeKatex from 'rehype-katex';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
-import { BorderTheme, LayoutTheme, FontSize, PaddingSize, WatermarkAlign } from '../types';
+import { BorderTheme, LayoutTheme, FontSize, PaddingSize, WatermarkAlign, SpacingLevel } from '../types';
 import { getThemeStyles, getFontSizeClass, getLayoutClass, getFramePaddingClass } from '../utils/themeUtils';
 import { StableImage } from './StableImage';
 import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
@@ -20,6 +20,7 @@ interface PosterPreviewProps {
   layoutTheme: LayoutTheme;
   fontSize: FontSize;
   padding: PaddingSize;
+  spacing?: SpacingLevel; // New Prop
   showWatermark: boolean;
   watermarkText: string;
   watermarkAlign: WatermarkAlign;
@@ -59,12 +60,22 @@ const ZoomControls = ({ isDarkMode, scale }: { isDarkMode: boolean; scale: numbe
     );
 };
 
+// Helper for Spacing Class
+const getSpacingClass = (spacing?: string) => {
+    switch (spacing) {
+        case 'compact': return 'leading-snug'; // Tailwind tight
+        case 'loose': return 'leading-loose';  // Tailwind loose
+        case 'standard': default: return 'leading-normal'; // Tailwind normal
+    }
+};
+
 export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
   markdown,
   theme,
   layoutTheme,
   fontSize,
   padding,
+  spacing = 'standard',
   showWatermark,
   watermarkText,
   watermarkAlign,
@@ -79,6 +90,7 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
   const fontSizeClass = getFontSizeClass(fontSize);
   const layoutClass = getLayoutClass(layoutTheme);
   const paddingClass = getFramePaddingClass(padding);
+  const spacingClass = getSpacingClass(spacing);
 
   // --- Zoom State ---
   // Initialize with a safe default, will be updated on mount
@@ -122,6 +134,17 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none'; 
   }, [posterWidth]);
+
+  // Construct inline styles for CSS Variables based on the new Color System
+  const cssVariables = useMemo(() => {
+      const colors = themeStyle.colors;
+      if (!colors) return {};
+      return {
+          '--mp-primary': colors.primary,
+          '--mp-secondary': colors.secondary,
+          '--mp-assist': colors.assist,
+      } as React.CSSProperties;
+  }, [themeStyle.colors]);
 
   return (
     <div 
@@ -221,7 +244,8 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
                             `}
                             style={{
                                 width: '100%',
-                                ...themeStyle.frameStyle
+                                ...themeStyle.frameStyle,
+                                ...cssVariables
                             }}
                             onMouseDown={(e) => e.stopPropagation()} 
                         >
@@ -249,7 +273,7 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
                                     ${themeStyle.content}
                                     ${layoutClass}
                                 `}>
-                                    <div className={`prose max-w-none ${themeStyle.prose} ${fontSizeClass}`}>
+                                    <div className={`prose max-w-none ${themeStyle.prose} ${fontSizeClass} ${spacingClass}`}>
                                         <ReactMarkdown 
                                             remarkPlugins={[remarkGfm, remarkMath, remarkDirective, remarkRuby, remarkCenter]}
                                             rehypePlugins={[rehypeKatex]}

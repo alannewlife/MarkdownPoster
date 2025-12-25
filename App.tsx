@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { PreviewControlBar } from './components/PreviewControlBar';
@@ -7,7 +6,7 @@ import { PosterPreview } from './components/PosterPreview';
 import { WritingPreview } from './components/WritingPreview';
 import { WeChatPreview } from './components/WeChatPreview';
 import { ConfirmationModal } from './components/ConfirmationModal';
-import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig, WritingTheme } from './types';
+import { BorderTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig, WritingTheme, SpacingLevel, PosterTemplate } from './types';
 import { cleanImagePool, compressImage } from './utils/imageUtils';
 import { DEFAULT_MARKDOWN } from './constants/defaultContent';
 import { usePosterExport } from './hooks/usePosterExport';
@@ -22,6 +21,7 @@ const STORAGE_KEY_LAYOUT_THEME = 'markdown_poster_layout_theme';
 const STORAGE_KEY_WRITING_THEME = 'markdown_poster_writing_theme';
 const STORAGE_KEY_FONT_SIZE = 'markdown_poster_fontsize';
 const STORAGE_KEY_PADDING = 'markdown_poster_padding';
+const STORAGE_KEY_SPACING = 'markdown_poster_spacing';
 const STORAGE_KEY_WATERMARK_SHOW = 'markdown_poster_watermark_show';
 const STORAGE_KEY_WATERMARK_TEXT = 'markdown_poster_watermark_text';
 const STORAGE_KEY_WATERMARK_ALIGN = 'markdown_poster_watermark_align';
@@ -72,6 +72,12 @@ export default function App() {
   const [padding, setPadding] = useState<PaddingSize>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_PADDING);
     return (saved as PaddingSize) || defaults.padding;
+  });
+  
+  // 5.1 Spacing (Line Height Level)
+  const [spacing, setSpacing] = useState<SpacingLevel>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_SPACING);
+    return (saved as SpacingLevel) || 'standard';
   });
   
   // 6. Watermark Settings
@@ -192,6 +198,10 @@ export default function App() {
   }, [padding]);
 
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_SPACING, spacing);
+  }, [spacing]);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEY_WATERMARK_SHOW, String(showWatermark));
   }, [showWatermark]);
 
@@ -250,6 +260,24 @@ export default function App() {
   const { isExporting: isExportingPoster, handleDownloadPoster, handleCopyPoster } = usePosterExport({ exportRef, imagePool, setImagePool, markdown });
   const { isCopyingWeChat, handleCopyHtml } = useWeChatExport({ weChatRef });
   const { isExportingZip, handleExportZip, handleDownloadMarkdown } = useProjectExport({ markdown, imagePool });
+
+  // --- TEMPLATE LOGIC ---
+  const handleApplyTemplate = useCallback((tpl: PosterTemplate) => {
+    setTheme(tpl.borderThemeId);
+    setLayoutTheme(tpl.layoutThemeId);
+    setFontSize(tpl.defaults.fontSize);
+    setPadding(tpl.defaults.padding);
+    setSpacing(tpl.defaults.spacing);
+    setShowWatermark(tpl.defaults.watermark.show);
+    setWatermarkAlign(tpl.defaults.watermark.align);
+    if (tpl.defaults.watermark.text) {
+        setWatermarkText(tpl.defaults.watermark.text);
+    }
+    // Apply default custom color if present in template
+    if (tpl.defaults.customThemeColor) {
+        setCustomThemeColor(tpl.defaults.customThemeColor);
+    }
+  }, []);
 
   // --- SCROLL SYNCHRONIZATION ---
   const handleEditorScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
@@ -832,6 +860,8 @@ export default function App() {
             setLayoutTheme={setLayoutTheme}
             padding={padding}
             setPadding={setPadding}
+            spacing={spacing}
+            setSpacing={setSpacing}
             watermarkAlign={watermarkAlign}
             setWatermarkAlign={setWatermarkAlign}
 
@@ -863,6 +893,8 @@ export default function App() {
 
             writingTheme={writingTheme}
             setWritingTheme={setWritingTheme}
+
+            onApplyTemplate={handleApplyTemplate}
           />
           
           <div className="relative flex-1 min-h-0 overflow-hidden">
@@ -876,6 +908,7 @@ export default function App() {
                layoutTheme={layoutTheme}
                fontSize={fontSize}
                padding={padding}
+               spacing={spacing}
                showWatermark={showWatermark}
                watermarkText={watermarkText}
                watermarkAlign={watermarkAlign}

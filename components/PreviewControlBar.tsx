@@ -1,7 +1,6 @@
 
-
 import React, { useState, useRef, useEffect } from 'react';
-import { BorderTheme, WritingTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig } from '../types';
+import { BorderTheme, WritingTheme, FontSize, ViewMode, LayoutTheme, PaddingSize, WatermarkAlign, WeChatConfig, SpacingLevel, PosterTemplate } from '../types';
 import { AppearancePopover } from './AppearancePopover';
 import { WeChatAppearancePopover } from './WeChatAppearancePopover';
 import { WritingAppearancePopover } from './WritingAppearancePopover';
@@ -16,6 +15,8 @@ interface PreviewControlBarProps {
   setLayoutTheme: (theme: LayoutTheme) => void;
   padding: PaddingSize;
   setPadding: (val: PaddingSize) => void;
+  spacing?: SpacingLevel;
+  setSpacing?: (val: SpacingLevel) => void;
   watermarkAlign: WatermarkAlign;
   setWatermarkAlign: (align: WatermarkAlign) => void;
 
@@ -47,6 +48,9 @@ interface PreviewControlBarProps {
   // Writing Theme Props
   writingTheme?: WritingTheme;
   setWritingTheme?: (theme: WritingTheme) => void;
+
+  // Template Handler
+  onApplyTemplate?: (template: PosterTemplate) => void;
 }
 
 interface NotificationState {
@@ -62,6 +66,8 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   setLayoutTheme,
   padding,
   setPadding,
+  spacing,
+  setSpacing,
   watermarkAlign,
   setWatermarkAlign,
   onExport,
@@ -85,7 +91,8 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
   customThemeColor,
   setCustomThemeColor,
   writingTheme,
-  setWritingTheme
+  setWritingTheme,
+  onApplyTemplate
 }) => {
   const [showAppearance, setShowAppearance] = useState(false);
   const [notification, setNotification] = useState<NotificationState | null>(null);
@@ -186,7 +193,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                     <span>自定义</span>
                 </button>
 
-                {showAppearance && viewMode === ViewMode.Poster && (
+                {showAppearance && viewMode === ViewMode.Poster && onApplyTemplate && setSpacing && spacing && (
                     <AppearancePopover
                         currentTheme={currentTheme}
                         setTheme={setTheme}
@@ -196,6 +203,8 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                         setFontSize={setFontSize}
                         padding={padding}
                         setPadding={setPadding}
+                        spacing={spacing}
+                        setSpacing={setSpacing}
                         showWatermark={showWatermark}
                         setShowWatermark={setShowWatermark}
                         watermarkText={watermarkText}
@@ -206,6 +215,7 @@ export const PreviewControlBar: React.FC<PreviewControlBarProps> = ({
                         onClose={() => setShowAppearance(false)}
                         customThemeColor={customThemeColor}
                         setCustomThemeColor={setCustomThemeColor}
+                        onApplyTemplate={onApplyTemplate}
                     />
                 )}
 

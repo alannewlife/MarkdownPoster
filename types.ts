@@ -7,6 +7,7 @@ export type LayoutTheme = string;
 export type WritingTheme = string;
 export type FontSize = string;
 export type PaddingSize = string;
+export type SpacingLevel = 'standard' | 'compact' | 'loose';
 
 export enum WatermarkAlign {
   Left = 'text-left',
@@ -20,6 +21,12 @@ export enum ViewMode {
   WeChat = 'WeChat'
 }
 
+export interface ThemeColors {
+  primary: string;
+  secondary: string;
+  assist: string;
+}
+
 export interface BorderStyleConfig {
   frame: string;      // The background style of the safety outer frame
   card: string;       // The inner container styling (border, shadow, radius)
@@ -27,6 +34,27 @@ export interface BorderStyleConfig {
   content: string;    // The inner content background and text color
   prose: string;      // Typography prose settings (e.g. prose-invert)
   watermarkColor: string; // Color of the watermark text on the frame
+  colors?: ThemeColors; // The semantic color system (Primary, Secondary, Assist)
+}
+
+export interface PosterTemplate {
+  id: string;
+  label: string;
+  borderThemeId: BorderTheme;
+  layoutThemeId: LayoutTheme;
+  scenario: 'General' | 'LongText' | 'Tech' | 'Social';
+  features: string[]; // e.g. ['TitleBar', 'Light', 'Retro', 'HighSat', 'Minimal', 'CustomColor']
+  defaults: {
+    fontSize: FontSize;
+    padding: PaddingSize;
+    spacing: SpacingLevel;
+    customThemeColor?: string; // Optional default custom color
+    watermark: {
+      show: boolean;
+      text?: string;
+      align: WatermarkAlign;
+    }
+  }
 }
 
 // Deprecated: Kept for migration types if needed, but not used in UI

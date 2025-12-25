@@ -1,9 +1,9 @@
 
-
 import yaml from 'js-yaml';
 import { THEME_CONFIG_YAML } from '../config/themeConfig';
 import { WRITING_THEMES, DEFAULT_WRITING_THEME_ID } from '../config/writingThemes';
-import { BorderStyleConfig, WatermarkAlign } from '../types';
+import { POSTER_TEMPLATES } from '../config/posterTemplates';
+import { BorderStyleConfig, WatermarkAlign, PosterTemplate } from '../types';
 
 export interface ThemeDef extends BorderStyleConfig {
     id: string;
@@ -77,6 +77,7 @@ class ThemeRegistryClass {
     private layoutMap: Record<string, LayoutDef>;
     private fontSizeMap: Record<string, FontSizeDef>;
     private paddingMap: Record<string, PaddingDef>;
+    private templates: PosterTemplate[];
 
     constructor() {
         try {
@@ -111,6 +112,9 @@ class ThemeRegistryClass {
                 this.paddingMap[p.id] = p;
             });
 
+            // Load Templates
+            this.templates = POSTER_TEMPLATES;
+
         } catch (e) {
             console.error("Failed to parse Theme YAML:", e);
             // Fallback structure
@@ -137,6 +141,7 @@ class ThemeRegistryClass {
             this.layoutMap = {};
             this.fontSizeMap = {};
             this.paddingMap = {};
+            this.templates = [];
         }
     }
 
@@ -160,6 +165,10 @@ class ThemeRegistryClass {
 
     getPaddings(): PaddingDef[] {
         return this.config.paddings || [];
+    }
+
+    getTemplates(): PosterTemplate[] {
+        return this.templates;
     }
 
     // --- Accessors for Individual Items ---
