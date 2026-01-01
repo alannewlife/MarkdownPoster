@@ -29,6 +29,7 @@ const STORAGE_KEY_DARK_MODE = 'markdown_poster_dark_mode';
 const STORAGE_KEY_IMAGE_POOL = 'markdown_poster_image_pool'; 
 const STORAGE_KEY_WECHAT_CONFIG = 'markdown_poster_wechat_config_v2'; 
 const STORAGE_KEY_CUSTOM_COLOR = 'markdown_poster_custom_color';
+const STORAGE_KEY_VIEW_MODE = 'markdown_poster_view_mode';
 
 // Max History Steps
 const MAX_HISTORY_SIZE = 10;
@@ -110,7 +111,11 @@ export default function App() {
   });
 
   // 8. View Mode (Poster vs Writing vs WeChat)
-  const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Writing);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_VIEW_MODE);
+    // Default to Poster (Border Mode) to immediately show the frame effect
+    return (saved as ViewMode) || ViewMode.Poster;
+  });
   
   // 9. WeChat Config
   const [weChatConfig, setWeChatConfig] = useState<WeChatConfig>(() => {
@@ -216,6 +221,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_DARK_MODE, String(isDarkMode));
   }, [isDarkMode]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_VIEW_MODE, viewMode);
+  }, [viewMode]);
   
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_WECHAT_CONFIG, JSON.stringify(weChatConfig));

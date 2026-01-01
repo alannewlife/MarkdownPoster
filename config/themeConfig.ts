@@ -13,9 +13,9 @@ export const THEME_CONFIG_YAML = `
 # 当用户第一次打开应用或重置时使用的值
 # ==============================================================================
 defaults:
-  theme: "MacOS"     # 默认边框主题 ID
+  theme: "Elegant"   # 默认边框主题 ID
   layout: "Base"     # 默认排版主题 ID
-  writingTheme: "${DEFAULT_WRITING_THEME_ID}" # 默认写作/阅读主题 ID (引用自 writingThemes.ts)
+  writingTheme: "${DEFAULT_WRITING_THEME_ID}" # 默认写作/阅读主题 ID
   fontSize: "Medium" # 默认字号 ID
   padding: "Medium"  # 默认边距 ID
   
@@ -29,6 +29,26 @@ defaults:
 # 1. 边框主题 (Border Themes)
 # ==============================================================================
 borderThemes:
+  # ============================================================================
+  # [组0] 特色推荐 (Featured)
+  # ============================================================================
+
+  # ----------------------------------------------------------------------------
+  # [Elegant] 优雅画框
+  # ----------------------------------------------------------------------------
+  - id: "Elegant"
+    name: "优雅画框"
+    preview: "bg-stone-50 border-4 border-stone-200"
+    frame: "bg-[#f5f5f4] p-4"
+    card: "bg-white border-[12px] border-white ring-1 ring-stone-200 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)]"
+    content: "bg-white text-gray-800"
+    prose: "prose-stone"
+    watermarkColor: "text-stone-300"
+    colors:
+      primary: "#44403c"
+      secondary: "#78716c"
+      assist: "#e7e5e4"
+
   # ============================================================================
   # [组1] 窗口标题风格 (Window Styles)
   # ============================================================================
@@ -244,7 +264,8 @@ borderThemes:
     frame: "bg-[#171717]"
     card: "bg-gray-900 border-2 border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] rounded-xl overflow-hidden"
     content: "bg-gray-900 text-pink-50"
-    prose: "prose-invert prose-p:text-pink-100 prose-li:text-pink-100 prose-headings:text-pink-400 prose-strong:text-cyan-300 prose-code:text-yellow-300 prose-blockquote:text-pink-200 prose-blockquote:border-pink-500 [&_td]:text-pink-50 [&_th]:text-pink-400"
+    # Added explicit text-white for common elements to prevent black text issues
+    prose: "prose-invert prose-headings:text-pink-400 prose-p:text-white/90 prose-li:text-white/90 prose-ul:text-white/90 prose-ol:text-white/90 prose-strong:text-cyan-300 prose-code:text-yellow-300 prose-blockquote:text-pink-100 prose-blockquote:border-pink-500 [&_td]:text-white/90 [&_th]:text-pink-400"
     watermarkColor: "text-pink-900"
     colors:
       primary: "#ec4899"
@@ -260,14 +281,15 @@ borderThemes:
     allowCustomColor: true
     preview: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600"
     frame: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600"
-    card: "bg-transparent"
-    content: "bg-white/95 backdrop-blur-sm shadow-2xl rounded-xl min-h-[600px]"
-    prose: "prose-slate"
-    watermarkColor: "text-white/80"
+    card: "bg-black/20 backdrop-blur-md border border-white/10 shadow-2xl rounded-xl"
+    content: "bg-transparent text-white"
+    # Force white text
+    prose: "prose-invert prose-headings:text-white prose-p:text-white/90 prose-li:text-white/90 prose-ul:text-white/90 prose-ol:text-white/90 prose-strong:text-indigo-200 prose-a:text-pink-300 [&_td]:text-white/90 [&_th]:text-indigo-200 [&_tr]:border-white/20"
+    watermarkColor: "text-white/40"
     colors:
-      primary: "#6366f1"
-      secondary: "#a926d9"
-      assist: "#49bcdf"
+      primary: "#818cf8"
+      secondary: "#c084fc"
+      assist: "#e879f9"
 
   # ----------------------------------------------------------------------------
   # [Radiance] 流光溢彩 (allowCustomColor)
@@ -278,64 +300,72 @@ borderThemes:
     allowCustomColor: true
     preview: "bg-gradient-to-tr from-teal-400 via-blue-500 to-purple-500"
     frame: "bg-gradient-to-tr from-teal-400 via-blue-500 to-purple-500"
-    card: "bg-transparent"
-    content: "bg-white/20 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] border border-white/20 rounded-2xl min-h-[600px] text-white"
-    prose: "prose-invert prose-headings:text-white prose-p:text-white/90 prose-strong:text-yellow-100 prose-a:text-yellow-200 [&_td]:text-white/90 [&_th]:text-white [&_tr]:border-white/20"
-    watermarkColor: "text-white/60"
+    card: "bg-white/10 backdrop-blur-lg border border-white/20 shadow-2xl rounded-xl"
+    content: "bg-transparent text-white"
+    # Force white text
+    prose: "prose-invert prose-headings:text-white prose-p:text-white/90 prose-li:text-white/90 prose-ul:text-white/90 prose-ol:text-white/90 prose-strong:text-teal-200 [&_td]:text-white/90 [&_th]:text-teal-200 [&_tr]:border-white/20"
+    watermarkColor: "text-white/50"
     colors:
-      primary: "#14b8a6"
-      secondary: "#2668d9"
-      assist: "#49df5d"
+      primary: "#2dd4bf"
+      secondary: "#60a5fa"
+      assist: "#a855f7"
 
 # ==============================================================================
 # 2. 排版主题 (Layout Themes)
-# 使用 CSS 变量 --mp-primary, --mp-secondary, --mp-assist 来绑定颜色
 # ==============================================================================
 layoutThemes:
+  # ----------------------------------------------------------------------------
+  # [Base] 标准
+  # ----------------------------------------------------------------------------
   - id: "Base"
     name: "标准"
-    className: "font-sans tracking-normal prose-headings:font-sans prose-headings:font-bold prose-h2:mt-10 prose-h2:mb-4 prose-h2:border-b prose-h2:pb-2 prose-h2:border-[var(--mp-primary)] prose-h3:mt-7 prose-h3:mb-3 prose-blockquote:rounded-lg prose-blockquote:py-3 prose-blockquote:px-4 prose-blockquote:not-italic prose-blockquote:bg-[var(--mp-assist)] prose-blockquote:border-l-4 prose-blockquote:border-[var(--mp-primary)] prose-hr:my-10 prose-ul:my-5 prose-ol:my-5 prose-li:my-1 prose-a:text-[var(--mp-primary)] prose-strong:text-[var(--mp-secondary)] prose-em:bg-[var(--mp-assist)] prose-em:px-1 prose-em:rounded-sm prose-em:not-italic prose-li:marker:text-[var(--mp-secondary)]"
+    className: "font-sans prose-headings:font-bold prose-headings:border-none prose-blockquote:bg-gray-500/10 prose-blockquote:border-l-[3px] prose-blockquote:border-current prose-blockquote:opacity-90 prose-blockquote:not-italic prose-blockquote:px-4 prose-blockquote:py-1 prose-blockquote:rounded-r-sm prose-strong:font-bold"
 
+  # ----------------------------------------------------------------------------
+  # [Classic] 经典
+  # ----------------------------------------------------------------------------
   - id: "Classic"
     name: "经典"
-    className: "font-serif tracking-tight prose-headings:font-serif prose-headings:font-bold prose-h1:tracking-tight prose-h1:leading-tight prose-h2:mt-12 prose-h2:mb-5 prose-h2:tracking-tight prose-h2:border-b-2 prose-h2:border-[var(--mp-primary)] prose-h2:pb-2 prose-p:leading-8 prose-blockquote:pl-6 prose-blockquote:pr-2 prose-blockquote:py-0 prose-blockquote:not-italic prose-blockquote:border-l-4 prose-blockquote:border-[var(--mp-primary)] prose-hr:my-12 prose-a:text-[var(--mp-secondary)] prose-strong:text-[var(--mp-primary)] prose-em:bg-[var(--mp-assist)] prose-em:px-1 prose-em:not-italic"
+    className: "font-serif prose-headings:font-bold prose-headings:border-none prose-strong:text-[var(--mp-primary)] prose-blockquote:bg-[var(--mp-assist)]/20 prose-blockquote:border-l-[3px] prose-blockquote:border-[var(--mp-primary)] prose-blockquote:not-italic prose-blockquote:px-4 prose-blockquote:py-1"
 
+  # ----------------------------------------------------------------------------
+  # [Vibrant] 活泼
+  # ----------------------------------------------------------------------------
   - id: "Vibrant"
     name: "活泼"
-    className: "font-mono tracking-wide prose-headings:font-mono prose-headings:font-black prose-headings:text-[var(--mp-primary)] prose-h2:mt-10 prose-h2:mb-4 prose-h2:inline-block prose-h2:rounded-xl prose-h2:px-3 prose-h2:py-1 prose-h2:bg-[var(--mp-primary)] prose-h2:text-white/90 prose-h3:mt-7 prose-h3:mb-3 prose-h3:inline-block prose-h3:rounded-lg prose-h3:px-2 prose-h3:py-0.5 prose-h3:border prose-h3:border-[var(--mp-secondary)] prose-h3:text-[var(--mp-secondary)] prose-blockquote:rounded-xl prose-blockquote:py-4 prose-blockquote:px-4 prose-blockquote:not-italic prose-blockquote:bg-[var(--mp-assist)] prose-hr:my-10 prose-ul:my-5 prose-li:my-1 prose-a:text-[var(--mp-primary)] prose-strong:text-[var(--mp-secondary)] prose-em:bg-[var(--mp-assist)] prose-em:px-1 prose-em:rounded-sm prose-em:not-italic prose-li:marker:text-[var(--mp-primary)]"
+    # Removed prose-headings:block to fix potential table layout issues
+    # Updated prose-strong to use Underline + Text Color instead of Background Highlight for better contrast and aesthetics
+    # Removed manual padding on th/td to allow natural table spacing
+    className: "font-sans tracking-wide prose-headings:text-[var(--mp-primary)] prose-h2:border-b-[3px] prose-h2:border-[var(--mp-secondary)] prose-h2:pb-2 prose-h2:mb-6 prose-strong:text-[var(--mp-secondary)] prose-strong:font-extrabold prose-strong:underline prose-strong:decoration-[var(--mp-assist)] prose-strong:decoration-4 prose-strong:underline-offset-4 prose-blockquote:bg-[var(--mp-assist)]/10 prose-blockquote:border-l-[5px] prose-blockquote:border-[var(--mp-secondary)] prose-blockquote:not-italic prose-blockquote:px-5 prose-blockquote:py-2 prose-th:text-[var(--mp-primary)] prose-th:border-b-2 prose-th:border-[var(--mp-secondary)]"
 
 # ==============================================================================
-# 3. 字体大小 (Font Sizes)
+# 3. 字号设置 (Font Sizes)
 # ==============================================================================
 fontSizes:
   - id: "Small"
     label: "S"
     className: "prose-sm"
-    icon: "text-xs"
-
   - id: "Medium"
     label: "M"
     className: "prose-base"
-    icon: "text-sm"
-
   - id: "Large"
     label: "L"
+    className: "prose-lg"
+  - id: "XLarge"
+    label: "XL"
     className: "prose-xl"
-    icon: "text-lg"
 
 # ==============================================================================
-# 4. 边距大小 (Paddings)
+# 4. 边距设置 (Paddings)
 # ==============================================================================
 paddings:
   - id: "Narrow"
     label: "窄"
     className: "p-4 sm:p-6"
-
   - id: "Medium"
     label: "中"
-    className: "p-6 sm:p-10"
-
+    className: "p-8 sm:p-12"
   - id: "Wide"
     label: "宽"
-    className: "p-8 sm:p-16"
+    className: "p-12 sm:p-20"
 `;
