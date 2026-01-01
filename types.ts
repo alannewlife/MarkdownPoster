@@ -2,6 +2,8 @@
 // Themes and configurations are now loaded dynamically from YAML.
 // We use string types instead of Enums to allow for easy extension without code changes.
 
+import React from 'react';
+
 export type BorderTheme = string;
 export type LayoutTheme = string;
 export type WritingTheme = string;
@@ -77,6 +79,16 @@ export interface WeChatConfig {
   captionType: 'title' | 'alt' | 'none';
   fontSize: FontSize;     // Now a string (Small, Medium, Large)
   lineHeight: 'compact' | 'comfortable'; // New line height setting
+}
+
+export interface WeChatStyleDef {
+    h1: React.CSSProperties;
+    h2: React.CSSProperties;
+    h3: React.CSSProperties;
+    list: React.CSSProperties;
+    blockquote: React.CSSProperties;
+    link: React.CSSProperties;
+    hr: React.CSSProperties;
 }
 
 export enum AiAction {

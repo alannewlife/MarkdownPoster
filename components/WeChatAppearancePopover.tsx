@@ -1,7 +1,6 @@
-
-
 import React from 'react';
 import { WeChatConfig } from '../types';
+import { WeChatThemeRegistry } from '../utils/wechatThemeRegistry';
 
 interface WeChatAppearancePopoverProps {
   config: WeChatConfig;
@@ -9,33 +8,6 @@ interface WeChatAppearancePopoverProps {
   isDarkMode: boolean;
   onClose: () => void;
 }
-
-const CodeThemes = [
-  { label: 'Dark', value: 'vsDark' },
-  { label: 'Light', value: 'vsLight' },
-  { label: 'Dracula', value: 'dracula' },
-  { label: 'Github', value: 'github' },
-  { label: 'NightOwl', value: 'nightOwl' },
-  { label: 'Oceanic', value: 'oceanicNext' },
-];
-
-// Manual mapping for WeChat since it has its own logic separate from Poster Mode's dynamic YAML
-const LayoutLabels: Record<string, string> = {
-    'Base': '标准',
-    'Classic': '经典',
-    'Vibrant': '活泼'
-};
-
-const ColorPresets = [
-    { color: '#07c160', label: '微信绿' },
-    { color: '#997343', label: '雅致金' },
-    { color: '#3b82f6', label: '科技蓝' },
-    { color: '#6366f1', label: '睿智紫' },
-    { color: '#ec4899', label: '活力粉' },
-    { color: '#f59e0b', label: '暖阳橙' },
-    { color: '#ef4444', label: '中国红' },
-    { color: '#1f2937', label: '极简黑' },
-];
 
 export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = ({
   config,
@@ -47,6 +19,13 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
   const updateConfig = (key: keyof WeChatConfig, value: any) => {
     setConfig({ ...config, [key]: value });
   };
+
+  const layouts = WeChatThemeRegistry.getLayouts();
+  const colors = WeChatThemeRegistry.getColorPresets();
+  const fontSizes = WeChatThemeRegistry.getFontSizes();
+  const lineHeights = WeChatThemeRegistry.getLineHeights();
+  const codeThemes = WeChatThemeRegistry.getCodeThemes();
+  const captionTypes = WeChatThemeRegistry.getCaptionTypes();
 
   return (
     <div className={`absolute top-full right-0 mt-2 w-[340px] rounded-xl shadow-2xl border p-5 z-50 animate-in fade-in zoom-in-95 origin-top-right duration-200 select-none
@@ -66,17 +45,17 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
       <div className="mb-6">
         <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">排版风格</label>
         <div className={`flex p-1 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
-          {['Base', 'Classic', 'Vibrant'].map((lt) => (
+          {layouts.map((lt) => (
             <button
-              key={lt}
-              onClick={() => updateConfig('layout', lt)}
+              key={lt.id}
+              onClick={() => updateConfig('layout', lt.id)}
               className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-                config.layout === lt
+                config.layout === lt.id
                   ? (isDarkMode ? 'bg-[#3e4451] text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm')
                   : 'opacity-60 hover:opacity-100'
               }`}
             >
-              {LayoutLabels[lt]}
+              {lt.name}
             </button>
           ))}
         </div>
@@ -86,7 +65,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
       <div className="mb-6">
           <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">主题色</label>
           <div className="flex flex-wrap gap-2.5">
-             {ColorPresets.map((preset) => (
+             {colors.map((preset) => (
                  <button
                     key={preset.color}
                     onClick={() => updateConfig('primaryColor', preset.color)}
@@ -118,11 +97,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
         <div className="flex items-center justify-between">
             <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">正文字号</label>
             <div className={`flex w-[180px] p-0.5 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
-              {[
-                { label: '小', value: 'Small' },
-                { label: '中', value: 'Medium' },
-                { label: '大', value: 'Large' }
-              ].map((opt) => (
+              {fontSizes.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => updateConfig('fontSize', opt.value)}
@@ -142,10 +117,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
         <div className="flex items-center justify-between">
             <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">行间距</label>
             <div className={`flex w-[180px] p-0.5 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
-              {[
-                { label: '紧凑', value: 'compact' },
-                { label: '舒适', value: 'comfortable' }
-              ].map((opt) => (
+              {lineHeights.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => updateConfig('lineHeight', opt.value)}
@@ -175,7 +147,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
                 : 'bg-gray-50 border-gray-200 text-gray-800 focus:ring-blue-400'
              }`}
           >
-             {CodeThemes.map(theme => (
+             {codeThemes.map(theme => (
                <option key={theme.value} value={theme.value}>{theme.label}</option>
              ))}
           </select>
@@ -189,11 +161,7 @@ export const WeChatAppearancePopover: React.FC<WeChatAppearancePopoverProps> = (
       <div className="mb-5">
         <label className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-2 block">图注格式</label>
         <div className={`flex p-1 rounded-lg border ${isDarkMode ? 'bg-[#2c313a] border-[#181a1f]' : 'bg-gray-100 border-gray-200'}`}>
-          {[
-             { label: 'Title优先', value: 'title' },
-             { label: 'Alt优先', value: 'alt' },
-             { label: '不显示', value: 'none' }
-          ].map((opt) => (
+          {captionTypes.map((opt) => (
             <button
               key={opt.value}
               onClick={() => updateConfig('captionType', opt.value)}

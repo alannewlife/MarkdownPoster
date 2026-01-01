@@ -4,9 +4,10 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkDirective from 'remark-directive';
 import rehypeKatex from 'rehype-katex';
-import { Highlight, themes } from 'prism-react-renderer';
-import { WeChatConfig, LayoutTheme, FontSize } from '../types';
-import { getWeChatFontSize, getWeChatLineHeight } from '../utils/themeUtils';
+import { Highlight } from 'prism-react-renderer';
+import { WeChatConfig } from '../types';
+import { hexToRgba } from '../utils/themeUtils';
+import { WeChatThemeRegistry } from '../utils/wechatThemeRegistry';
 import { StableImage } from './StableImage';
 import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
@@ -21,95 +22,6 @@ interface WeChatPreviewProps {
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
-// Map config theme strings to Prism themes
-const getPrismTheme = (themeName: string) => {
-    switch(themeName) {
-        case 'vsDark': return themes.vsDark;
-        case 'vsLight': return themes.vsLight;
-        case 'dracula': return themes.dracula;
-        case 'github': return themes.github;
-        case 'nightOwl': return themes.nightOwl;
-        case 'oceanicNext': return themes.oceanicNext;
-        default: return themes.vsDark;
-    }
-};
-
-// --- HELPER: Color manipulation ---
-const hexToRgba = (hex: string, alpha: number) => {
-    let c: any;
-    if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
-        c= hex.substring(1).split('');
-        if(c.length== 3){
-            c= [c[0], c[0], c[1], c[1], c[2], c[2]];
-        }
-        c= '0x'+c.join('');
-        return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
-    }
-    return hex; // Fallback
-}
-
-// --- INLINE STYLE DEFINITIONS ---
-// Dynamically generate styles based on Layout and Color
-const getDynamicStyles = (layout: LayoutTheme, primaryColor: string) => {
-    const commonHeader = { fontWeight: 'bold', marginTop: '1.5em', marginBottom: '1em', lineHeight: '1.4' };
-    const commonBlockquote = { 
-        paddingLeft: '1em',
-        paddingRight: '1em',
-        paddingTop: '1em', 
-        paddingBottom: '1em', 
-        margin: '1.5em 0',
-        fontSize: '0.95em',
-        borderRadius: '4px'
-    };
-
-    // Derived Colors
-    const faintBg = hexToRgba(primaryColor, 0.08); // Very light background
-    const borderBg = hexToRgba(primaryColor, 0.2); // Light border
-
-    switch(layout) {
-        // --- VIBRANT LAYOUT ---
-        case 'Vibrant':
-            return {
-                h1: { ...commonHeader, textAlign: 'center' as const, borderBottom: `2px solid ${primaryColor}`, paddingBottom: '0.5em', color: primaryColor }, 
-                // H2: Pill Shape with White Text
-                h2: { ...commonHeader, background: primaryColor, color: 'white', padding: '0.2em 1em', borderRadius: '20px', display: 'inline-block', boxShadow: `0 2px 5px ${hexToRgba(primaryColor, 0.3)}` },
-                h3: { ...commonHeader, color: primaryColor, borderLeft: `4px solid ${primaryColor}`, paddingLeft: '0.5em' },
-                list: { color: primaryColor },
-                // Blockquote: Full Colored Box
-                blockquote: { ...commonBlockquote, backgroundColor: faintBg, color: '#334155', borderLeft: `4px solid ${primaryColor}` }, 
-                link: { color: primaryColor, fontWeight: 'bold', textDecoration: 'none', borderBottom: `1px dashed ${primaryColor}` },
-                hr: { border: '0', borderTop: `1px solid ${borderBg}`, margin: '2em 0' },
-            };
-
-        // --- CLASSIC LAYOUT ---
-        case 'Classic':
-            return {
-                h1: { ...commonHeader, textAlign: 'center' as const, color: '#1f2937', letterSpacing: '0.05em', borderBottom: '1px solid #e5e5e5', paddingBottom: '1em' },
-                // H2: Top/Bottom Border Lines
-                h2: { ...commonHeader, textAlign: 'center' as const, color: primaryColor, borderTop: `1px solid ${primaryColor}`, borderBottom: `1px solid ${primaryColor}`, padding: '0.5em 0', display: 'block', width: '100%' },
-                h3: { ...commonHeader, color: '#374151', fontWeight: 'bold' },
-                list: { color: primaryColor },
-                blockquote: { ...commonBlockquote, borderLeft: 'none', borderTop: `2px solid ${primaryColor}`, borderBottom: `2px solid ${primaryColor}`, fontStyle: 'italic', color: '#4b5563', backgroundColor: 'transparent', textAlign: 'center' as const },
-                link: { color: primaryColor, textDecoration: 'underline', textUnderlineOffset: '4px' },
-                hr: { border: '0', borderTop: '1px solid #111827', margin: '2em 0' },
-            };
-
-        // --- STANDARD / BASE LAYOUT ---
-        case 'Base':
-        default:
-            return {
-                h1: { ...commonHeader, borderBottom: '1px solid #e5e5e5', paddingBottom: '0.5em', color: '#111' },
-                // H2: Left Thick Border
-                h2: { ...commonHeader, borderLeft: `4px solid ${primaryColor}`, paddingLeft: '0.5em', color: primaryColor },
-                h3: { ...commonHeader, color: '#333', fontWeight: 'bold' },
-                list: { color: primaryColor },
-                blockquote: { ...commonBlockquote, borderLeft: `4px solid ${hexToRgba(primaryColor, 0.4)}`, backgroundColor: '#f9fafb', color: '#6b7280' },
-                link: { color: primaryColor, textDecoration: 'none' },
-                hr: { border: '0', borderTop: '1px solid #e5e5e5', margin: '2em 0' },
-            };
-    }
-};
-
 export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
   markdown,
   config,
@@ -120,16 +32,24 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
   onScroll
 }, ref) => {
   
-  const themeStyle = useMemo(() => getDynamicStyles(config.layout || 'Base', config.primaryColor || '#07c160'), [config.layout, config.primaryColor]);
+  // 1. Get Style from Registry
+  const themeStyle = useMemo(() => {
+      return WeChatThemeRegistry.getLayoutStyles(config.layout, config.primaryColor || '#07c160');
+  }, [config.layout, config.primaryColor]);
 
-  // Determine actual font size in pixels using centralized helper
+  // 2. Get Code Theme from Registry
+  const codeThemeDef = useMemo(() => {
+      return WeChatThemeRegistry.getCodeThemeDef(config.codeTheme);
+  }, [config.codeTheme]);
+
+  // Determine actual font size using registry helper
   const baseFontSize = useMemo(() => {
-      return getWeChatFontSize(config.fontSize);
+      return WeChatThemeRegistry.getFontSizePixel(config.fontSize);
   }, [config.fontSize]);
 
-  // Determine line height value using centralized helper
+  // Determine line height using registry helper
   const lineHeightValue = useMemo(() => {
-      return getWeChatLineHeight(config.lineHeight);
+      return WeChatThemeRegistry.getLineHeightScale(config.lineHeight);
   }, [config.lineHeight]);
   
   // Font sizes for Headings (scaled)
@@ -236,10 +156,10 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
           const className = props?.className || '';
           const codeContent = String(props?.children || '').replace(/\n$/, '');
           const match = /language-(\w+)/.exec(className);
-          const prismTheme = getPrismTheme(config.codeTheme);
+          const prismTheme = codeThemeDef.theme;
 
           // Determine if theme is dark for header styling
-          const isDarkTheme = ['vsDark', 'dracula', 'nightOwl', 'oceanicNext'].includes(config.codeTheme);
+          const isDarkTheme = codeThemeDef.isDark;
           
           // Get background from theme or fallback
           const themeBg = prismTheme.plain.backgroundColor || (isDarkTheme ? '#1e1e1e' : '#f6f8fa');
@@ -490,7 +410,7 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
              {children}
           </td>
       )
-  }), [config, themeStyle, imagePool, baseFontSize, lineHeightValue, headingSizes, commonTextStyle]);
+  }), [config, themeStyle, imagePool, baseFontSize, lineHeightValue, headingSizes, commonTextStyle, codeThemeDef]);
 
   return (
     <div 

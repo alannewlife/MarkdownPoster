@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FontSize, LayoutTheme, PaddingSize, ThemeColors } from '../types';
 import { ThemeRegistry, ThemeDef } from './themeRegistry';
@@ -39,6 +38,20 @@ function hexToHSL(hex: string) {
     l = +(l * 100).toFixed(1);
   
     return { h, s, l };
+}
+
+// Helper: Convert Hex to RGBA
+export const hexToRgba = (hex: string, alpha: number) => {
+    let c: any;
+    if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+        c= hex.substring(1).split('');
+        if(c.length== 3){
+            c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+        }
+        c= '0x'+c.join('');
+        return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
+    }
+    return hex; // Fallback
 }
 
 // Override logic to support dynamic colors with rich Mesh Gradients and Theme Customization
