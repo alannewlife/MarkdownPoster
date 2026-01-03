@@ -11,6 +11,7 @@ import { WeChatThemeRegistry } from '../utils/wechatThemeRegistry';
 import { StableImage } from './StableImage';
 import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
+import { normalizeQuotedEmphasis } from '../utils/markdownNormalize';
 
 interface WeChatPreviewProps {
   markdown: string;
@@ -104,6 +105,8 @@ export const WeChatPreview = forwardRef<HTMLDivElement, WeChatPreviewProps>(({
             return `${prefix}[${linkText}](${url})\`[${linkCounter}]\``;
         });
      }
+
+     text = normalizeQuotedEmphasis(text);
 
      return { 
          processedMarkdown: text, 

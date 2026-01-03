@@ -282,9 +282,9 @@ borderThemes:
     preview: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600"
     frame: "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600"
     card: "bg-black/20 backdrop-blur-md border border-white/10 shadow-2xl rounded-xl"
-    content: "bg-transparent text-white"
-    # Force white text
-    prose: "prose-invert prose-headings:text-white prose-p:text-white/90 prose-li:text-white/90 prose-ul:text-white/90 prose-ol:text-white/90 prose-strong:text-indigo-200 prose-a:text-pink-300 [&_td]:text-white/90 [&_th]:text-indigo-200 [&_tr]:border-white/20"
+    # Inner content stays white for readability (frame remains colorful)
+    content: "bg-white text-slate-900"
+    prose: "prose-slate prose-headings:text-slate-900 prose-p:text-slate-700 prose-li:text-slate-700 prose-ul:text-slate-700 prose-ol:text-slate-700 prose-strong:text-slate-900 prose-a:text-blue-600 [&_td]:text-slate-700 [&_th]:text-slate-900 [&_tr]:border-slate-200"
     watermarkColor: "text-white/40"
     colors:
       primary: "#818cf8"

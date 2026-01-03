@@ -13,6 +13,7 @@ import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
 import { HEADER_PRESETS } from '../config/headerPresets'; 
 import { DECOR_PRESETS } from '../config/decorPresets'; 
+import { normalizeQuotedEmphasis } from '../utils/markdownNormalize';
 
 interface PosterPreviewProps {
   markdown: string;
@@ -86,6 +87,7 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
 }, ref) => {
   
   const themeStyle = useMemo(() => getThemeStyles(theme, customThemeColor), [theme, customThemeColor]);
+  const normalizedMarkdown = useMemo(() => normalizeQuotedEmphasis(markdown), [markdown]);
   
   const fontSizeClass = getFontSizeClass(fontSize);
   const layoutClass = getLayoutClass(layoutTheme);
@@ -303,7 +305,7 @@ export const PosterPreview = forwardRef<HTMLDivElement, PosterPreviewProps>(({
                                                 )
                                             }}
                                         >
-                                            {markdown}
+                                            {normalizedMarkdown}
                                         </ReactMarkdown>
                                     </div>
                                 </div>

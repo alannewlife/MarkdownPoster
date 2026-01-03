@@ -66,7 +66,9 @@ export const getThemeStyles = (themeName: string, customColor?: string): ThemeDe
         assist: '#9ca3af'
     };
 
-    if (customColor) {
+    const shouldApplyCustomColor = Boolean(customColor) && Boolean(baseTheme.allowCustomColor);
+
+    if (shouldApplyCustomColor && customColor) {
         const { h, s } = hexToHSL(customColor);
         
         // Dynamic Color Logic:

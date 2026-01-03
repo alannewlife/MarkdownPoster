@@ -11,6 +11,7 @@ import { StableImage } from './StableImage';
 import { remarkRuby, remarkCenter } from '../utils/markdownPlugins';
 import { RubyRender } from './RubyRender';
 import { ThemeRegistry } from '../utils/themeRegistry';
+import { normalizeQuotedEmphasis } from '../utils/markdownNormalize';
 
 interface WritingPreviewProps {
   markdown: string;
@@ -33,6 +34,7 @@ export const WritingPreview: React.FC<WritingPreviewProps> = ({
   containerRef,
   onScroll
 }) => {
+  const normalizedMarkdown = normalizeQuotedEmphasis(markdown);
   
   // Look up the selected theme definition
   const themeDef = writingTheme ? ThemeRegistry.getWritingTheme(writingTheme) : undefined;
@@ -78,7 +80,7 @@ export const WritingPreview: React.FC<WritingPreviewProps> = ({
                   }
                 }}
               >
-                {markdown}
+                {normalizedMarkdown}
               </ReactMarkdown>
           </div>
        </div>

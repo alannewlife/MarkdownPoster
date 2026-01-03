@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { PaletteGallery } from './components/PaletteGallery';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -8,8 +9,11 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+
+const isPaletteMode = typeof window !== 'undefined' && window.location.search.includes('palette=1');
+
 root.render(
   <React.StrictMode>
-    <App />
+    {isPaletteMode ? <PaletteGallery /> : <App />}
   </React.StrictMode>
 );
